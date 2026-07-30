@@ -171,17 +171,44 @@ class PermaMission(gl.Contract):
     def review_proposal(self, proposal_id: str) -> None:
         proposal = self._require_proposal(proposal_id)
         mission = self._require_mission(proposal.mission_id)
-        if proposal.status not in (STATUS_OPEN, STATUS_NEEDS_EVIDENCE, STATUS_CHALLENGED):
+        if proposal.status not in (STATUS_OPEN, STATUS_NEEDS_EVIDENCE):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal is not reviewable")
+        self._review_with_consensus(proposal, mission, False)
 
+    @gl.public.write
+    def open_challenge(self, proposal_id: str, challenge_url: str, challenge_summary: str) -> None:
+        proposal = self._require_proposal(proposal_id)
+        if proposal.status not in (STATUS_APPROVED, STATUS_REJECTED, STATUS_NEEDS_EVIDENCE):
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal decision cannot be challenged")
+        if gl.message.sender_address != proposal.proposer:
+            mission = self._require_mission(proposal.mission_id)
+            if gl.message.sender_address != mission.steward:
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} Only proposer or steward can open challenge")
+        self._require_len(challenge_url, 12, 360, "challenge url")
+        self._require_len(challenge_summary, 60, 1600, "challenge summary")
+        proposal.status = STATUS_CHALLENGED
+        proposal.challenge_url = challenge_url
+        proposal.challenge_summary = challenge_summary
+        proposal.challenged_at = self._now()
+        self.proposals[proposal.id] = proposal
+
+    @gl.public.write
+    def review_challenge(self, proposal_id: str) -> None:
+        proposal = self._require_proposal(proposal_id)
+        mission = self._require_mission(proposal.mission_id)
+        if proposal.status != STATUS_CHALLENGED:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal challenge is not reviewable")
+        self._review_with_consensus(proposal, mission, True)
+
+    def _review_with_consensus(self, proposal: Proposal, mission: Mission, include_challenge: bool) -> None:
         mission_name = mission.name
         charter = mission.charter
         constraints = mission.constraints
         plan = proposal.plan
         title = proposal.title
         evidence_url = proposal.evidence_url
-        challenge_url = proposal.challenge_url
-        challenge_summary = proposal.challenge_summary
+        challenge_url = proposal.challenge_url if include_challenge else ""
+        challenge_summary = proposal.challenge_summary if include_challenge else ""
         requested = str(proposal.requested_amount)
 
         result = self._consensus_review(
@@ -214,25 +241,8 @@ class PermaMission(gl.Contract):
         else:
             proposal.status = STATUS_NEEDS_EVIDENCE
 
-        self.proposals[proposal_id] = proposal
+        self.proposals[proposal.id] = proposal
         self.missions[proposal.mission_id] = mission
-
-    @gl.public.write
-    def challenge_review(self, proposal_id: str, challenge_url: str, challenge_summary: str) -> None:
-        proposal = self._require_proposal(proposal_id)
-        if proposal.status not in (STATUS_APPROVED, STATUS_REJECTED, STATUS_NEEDS_EVIDENCE):
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal decision cannot be challenged")
-        if gl.message.sender_address != proposal.proposer:
-            mission = self._require_mission(proposal.mission_id)
-            if gl.message.sender_address != mission.steward:
-                raise gl.vm.UserError(f"{ERROR_EXPECTED} Only proposer or steward can challenge review")
-        self._require_len(challenge_url, 12, 360, "challenge url")
-        self._require_len(challenge_summary, 60, 1600, "challenge summary")
-        proposal.status = STATUS_CHALLENGED
-        proposal.challenge_url = challenge_url
-        proposal.challenge_summary = challenge_summary
-        proposal.challenged_at = self._now()
-        self.proposals[proposal_id] = proposal
 
     @gl.public.write
     def release_payment(self, proposal_id: str) -> None:

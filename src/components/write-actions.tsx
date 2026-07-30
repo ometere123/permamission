@@ -107,7 +107,7 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
   const txs = useTransactions();
   const [message, setMessage] = useState("");
 
-  async function run(functionName: "review_proposal" | "release_payment") {
+  async function run(functionName: "review_proposal" | "review_challenge" | "release_payment") {
     try {
       setMessage("Waiting for wallet signature...");
       const client = await wallet.getWriteClient();
@@ -126,7 +126,8 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
     <div className="manuscript-border bg-coal-900 p-5">
       <div className="dossier-label">Actions</div>
       <div className="mt-4 flex flex-wrap gap-3">
-        {(status === "OPEN" || status === "NEEDS_EVIDENCE" || status === "CHALLENGED") ? <button className="seal-tab px-4 py-3" onClick={() => run("review_proposal")}>Review by Consensus</button> : null}
+        {(status === "OPEN" || status === "NEEDS_EVIDENCE") ? <button className="seal-tab px-4 py-3" onClick={() => run("review_proposal")}>Review by Consensus</button> : null}
+        {status === "CHALLENGED" ? <button className="seal-tab px-4 py-3" onClick={() => run("review_challenge")}>Review Challenge</button> : null}
         {status === "APPROVED" ? <button className="tab-button" onClick={() => run("release_payment")}>Release GEN</button> : null}
       </div>
       {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
@@ -148,9 +149,9 @@ export function ChallengeReviewForm({ proposalId, status }: { proposalId: string
     setBusy(true);
     try {
       const client = await wallet.getWriteClient();
-      const hash = await writeContract(client, "challenge_review", [proposalId, state.evidence, state.summary], 0n);
-      txs.track({ hash, label: `Challenge ${proposalId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "challenge_review" });
-      setMessage("Challenge submitted. Run consensus review again after it finalizes.");
+      const hash = await writeContract(client, "open_challenge", [proposalId, state.evidence, state.summary], 0n);
+      txs.track({ hash, label: `Open challenge ${proposalId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "open_challenge" });
+      setMessage("Challenge opened. Run challenge review after it finalizes.");
       const receipt = await waitAccepted(client, hash);
       txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
       setMessage(`Challenge reached ${String(receipt.statusName ?? receipt.status)}.`);

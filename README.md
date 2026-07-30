@@ -55,8 +55,8 @@ create_mission(...) payable         -> steward creates and funds a mission treas
 fund_mission(...) payable           -> anyone can add GEN to the mission
 submit_proposal(...)                -> builder submits plan + public evidence URL
 review_proposal(...)                -> validators fetch evidence and decide mission fit
-challenge_review(...)               -> proposer/steward supplies new public evidence
-review_proposal(...) again          -> validators re-review with challenge evidence
+open_challenge(...)                 -> proposer/steward supplies new public evidence
+review_challenge(...)               -> validators re-review with challenge evidence
 release_payment(...)                -> steward releases GEN only after APPROVED
 close_mission(...)                  -> steward closes future submissions
 ```
@@ -88,16 +88,22 @@ The model is asked what the evidence proves. The contract decides which state tr
 
 ## Consensus Design
 
-Only proposal review enters non-deterministic consensus.
+Only proposal and challenge review enter non-deterministic consensus.
 
 `review_proposal(proposal_id)`:
 
 1. Loads the mission charter, constraints, proposal plan, requested amount, and evidence URL.
 2. Fetches the evidence URL inside the contract with `gl.nondet.web.render(..., mode="text")`.
-3. If the decision has been challenged, fetches the challenge evidence URL too.
-4. Calls an LLM for a structured review.
-5. Uses `gl.eq_principle.prompt_comparative` so validators agree on meaning and outcome, not byte-identical wording.
-6. Clamps outputs to allowed categories before writing state.
+3. Calls an LLM for a structured review.
+4. Uses `gl.eq_principle.prompt_comparative` so validators agree on meaning and outcome, not byte-identical wording.
+5. Clamps outputs to allowed categories before writing state.
+
+`review_challenge(proposal_id)`:
+
+1. Requires the proposal to be in `CHALLENGED`.
+2. Fetches the original evidence URL and the challenge evidence URL inside the contract.
+3. Runs the same comparative consensus review with both evidence bodies and the challenge summary.
+4. Updates the proposal decision before any payout can be released.
 
 Stored verdict categories:
 
@@ -151,7 +157,8 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | `fund_mission(mission_id)` | payable write | Add GEN to a mission treasury. |
 | `submit_proposal(proposal_id, mission_id, title, requested_amount, plan, evidence_url)` | write | Submit a public evidence-backed proposal. |
 | `review_proposal(proposal_id)` | consensus write | Fetch evidence and decide mission fit. |
-| `challenge_review(proposal_id, challenge_url, challenge_summary)` | write | Reopen a decision with new public evidence. |
+| `open_challenge(proposal_id, challenge_url, challenge_summary)` | write | Reopen a decision with new public evidence. |
+| `review_challenge(proposal_id)` | consensus write | Fetch original plus challenge evidence and re-decide mission fit. |
 | `release_payment(proposal_id)` | write | Steward releases GEN after approval. |
 | `mark_paid(proposal_id)` | write | Compatibility alias for `release_payment`. |
 | `close_mission(mission_id)` | write | Close future submissions for a mission. |
@@ -170,8 +177,8 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x0A20075d74fa2270851464D792ca080A78cA6A4c` |
-| Deployment tx | `0xb53b5590a93ec20a03533c60480bd27dfc50d679ffeeae2ea65a0e347fa01d22` |
+| Contract | `0x220ED7681d123e1b82d6c068bA2813135e5f5582` |
+| Deployment tx | `0x64c7cbdd5f7158e7f7e97d1dbf672cfbfdbb8913175254791eff6b81273f6aa3` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -180,14 +187,14 @@ The upgraded deployment was exercised end-to-end with public IANA evidence:
 
 | Flow | Transaction |
 | --- | --- |
-| Create mission | `0x9b3ba964e83f0a09a12883dee5c9983550a4c92f024d05beb4d6f0307d2734ff` |
-| Fund mission | `0x25fe45ade791d01efef39470f12cc34aaf6e6fdc391899ef6889806cceabdf98` |
-| Submit proposal | `0x9f838ac80ff57d5ff3f8d7d7b33366b9e94c499e6b95b2a4b12d669fa22469ba` |
-| First consensus review | `0x1109ffa847f0e51a2a5ed0015f77dae33ea06e31565336e5a8383c75c2228f54` |
-| Challenge decision with new evidence | `0x96aa40e21bde69be4da09317a869cc68f9e597987f22dd8e8639e03f632296c5` |
-| Second consensus review after challenge | `0x5dcdeafb5ddbb5f6191b951b708d0fe934007da81d7332b675b33ee757e8ccf8` |
-| Release payment | `0xad9c36a7ca36b0f294de71cd2b26ebc658c9c15e3ce9cd6c1dbe4af1ad41bcef` |
-| Close mission | `0x5c6fe404a25ada90c6066ff9b9b6a0ec3c37e9874adfdaa8502abbb840e4aa6d` |
+| Create mission | `0xcc76d4b4f6368fba127353f0981b86ac52ac31ae2afa25033a761eafdf88e832` |
+| Fund mission | `0x2eacfd19fa370468a4e75cfe07287fae0a1a60d174da7e50c3ddf5e572b4cf8f` |
+| Submit proposal | `0x8066dd371d024d54c46373eacdf0b058146f86055328a200934a01796a4a34f4` |
+| First consensus review | `0x530cc2806045b69a2311b67d936633c63902ab11a0a2cba7733e6e8cca0827a6` |
+| Open challenge with new evidence | `0xced608b67b4db94eeee333dfc66b37cf0b5efff850447bcd4f3eb44a5c6f9890` |
+| Consensus review after challenge | `0xfd3d2e3061b4cbb4177613db24b0a967c50b9356ff844b86bb6d88e9e17d77e4` |
+| Release payment | `0xa51c1573582877f02a5cacd37f122d962913d6756a3f5ee40bf64e34fdae02ad` |
+| Close mission | `0x66e2679ad4bdf32a5336cd8b484d5e51a9fff3039bb1ba8bb1fb69fdd40635d5` |
 
 The first review approved the proposal. The challenge added a second IANA source, validators fetched both sources, the second review approved again, and payout was released after that second verdict.
 
@@ -199,10 +206,10 @@ Current measured checks:
 
 ```bash
 python -m pytest tests\direct -v
-# 30 passed
+# 31 passed
 
 genvm-lint check contracts\PermaMission.py --json
-# ok: true, methods: 13
+# ok: true, methods: 14
 
 npm run lint
 # passed
@@ -210,11 +217,11 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0A20075d74fa2270851464D792ca080A78cA6A4c npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x220ED7681d123e1b82d6c068bA2813135e5f5582 npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
-# create -> fund -> submit -> review -> challenge -> review -> release -> close
+# create -> fund -> submit -> review_proposal -> open_challenge -> review_challenge -> release -> close
 ```
 
 Direct tests cover:
@@ -271,7 +278,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0A20075d74fa2270851464D792ca080A78cA6A4c
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x220ED7681d123e1b82d6c068bA2813135e5f5582
 ```
 
 Open http://localhost:3000.

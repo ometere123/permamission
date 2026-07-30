@@ -162,13 +162,13 @@ def test_review_requires_open_or_needs_evidence(contract, direct_vm, direct_alic
         contract.review_proposal(pid)
 
 
-def test_challenge_review_reopens_decision(contract, direct_vm, direct_alice, direct_bob):
+def test_open_challenge_reopens_decision(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "REJECT", "LOW")
     contract.review_proposal(pid)
     direct_vm.sender = direct_bob
-    contract.challenge_review(
+    contract.open_challenge(
         pid,
         "https://example.com/challenge",
         "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
@@ -184,12 +184,12 @@ def test_challenged_proposal_can_be_reviewed_again(contract, direct_vm, direct_a
     mock_review(direct_vm, "REJECT", "LOW")
     contract.review_proposal(pid)
     direct_vm.sender = direct_bob
-    contract.challenge_review(
+    contract.open_challenge(
         pid,
         "https://example.com/challenge",
         "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
     )
-    contract.review_proposal(pid)
+    contract.review_challenge(pid)
     proposal = contract.get_proposal(pid)
     assert proposal["status"] == "REJECTED"
     assert proposal["reviewed_at"] != ""
@@ -201,7 +201,7 @@ def test_challenge_blocks_release_until_rereview(contract, direct_vm, direct_ali
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
     direct_vm.sender = direct_bob
-    contract.challenge_review(
+    contract.open_challenge(
         pid,
         "https://example.com/challenge",
         "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
@@ -218,11 +218,26 @@ def test_only_proposer_or_steward_can_challenge(contract, direct_vm, direct_alic
     contract.review_proposal(pid)
     direct_vm.sender = direct_charlie
     with direct_vm.expect_revert("proposer or steward"):
-        contract.challenge_review(
+        contract.open_challenge(
             pid,
             "https://example.com/challenge",
             "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
         )
+
+
+def test_review_proposal_does_not_review_challenge(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    mock_review(direct_vm, "APPROVE", "HIGH")
+    contract.review_proposal(pid)
+    direct_vm.sender = direct_bob
+    contract.open_challenge(
+        pid,
+        "https://example.com/challenge",
+        "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
+    )
+    with direct_vm.expect_revert("not reviewable"):
+        contract.review_proposal(pid)
 
 
 def test_release_requires_approval(contract, direct_vm, direct_alice, direct_bob):

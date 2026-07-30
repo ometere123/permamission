@@ -79,13 +79,13 @@ console.log("proposal after review:", JSON.stringify(proposal, null, 2));
 let released = false;
 
 if (proposal?.status === "APPROVED") {
-  await write("challenge_review", "challenge_review", [
+  await write("open_challenge", "open_challenge", [
     proposalId,
     "https://www.iana.org/domains/reserved",
     "The official reserved-domain registry provides additional public evidence that example domains are specifically set aside for documentation and educational material, reinforcing the mission fit before any payout is released.",
   ]);
 
-  await write("review_proposal_after_challenge", "review_proposal", [proposalId], 0n, TransactionStatus.ACCEPTED);
+  await write("review_challenge", "review_challenge", [proposalId], 0n, TransactionStatus.ACCEPTED);
 
   const challengedProposal = await client.readContract({
     address,
@@ -101,14 +101,14 @@ if (proposal?.status === "APPROVED") {
     released = true;
   }
 } else if (proposal?.status === "REJECTED" || proposal?.status === "NEEDS_EVIDENCE") {
-  await write("challenge_review", "challenge_review", [
+  await write("open_challenge", "open_challenge", [
     proposalId,
     "https://www.iana.org/domains/reserved",
     "Additional public evidence is supplied so validators can re-check whether the planned documentation is aligned with the mission charter.",
   ]);
-  await write("review_proposal_after_challenge", "review_proposal", [proposalId], 0n, TransactionStatus.ACCEPTED);
+  await write("review_challenge", "review_challenge", [proposalId], 0n, TransactionStatus.ACCEPTED);
 } else {
-  console.log("challenge_review skipped because proposal is not in a challengeable decision state");
+  console.log("open_challenge skipped because proposal is not in a challengeable decision state");
 }
 
 const latestProposal = await client.readContract({
