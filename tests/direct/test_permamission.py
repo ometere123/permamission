@@ -200,7 +200,7 @@ def test_challenge_blocks_release_until_rereview(contract, direct_vm, direct_ali
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
-    direct_vm.sender = direct_bob
+    direct_vm.sender = direct_alice
     contract.open_challenge(
         pid,
         "https://example.com/challenge",
@@ -211,13 +211,27 @@ def test_challenge_blocks_release_until_rereview(contract, direct_vm, direct_ali
         contract.release_payment(pid)
 
 
-def test_only_proposer_or_steward_can_challenge(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
+def test_third_party_cannot_challenge_approved_proposal(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
     mid = create_mission(contract, direct_vm, direct_alice)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
     direct_vm.sender = direct_charlie
-    with direct_vm.expect_revert("proposer or steward"):
+    with direct_vm.expect_revert("Only mission steward"):
+        contract.open_challenge(
+            pid,
+            "https://example.com/challenge",
+            "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
+        )
+
+
+def test_proposer_cannot_challenge_approved_proposal(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    mock_review(direct_vm, "APPROVE", "HIGH")
+    contract.review_proposal(pid)
+    direct_vm.sender = direct_bob
+    with direct_vm.expect_revert("Only mission steward"):
         contract.open_challenge(
             pid,
             "https://example.com/challenge",
@@ -230,7 +244,7 @@ def test_review_proposal_does_not_review_challenge(contract, direct_vm, direct_a
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
-    direct_vm.sender = direct_bob
+    direct_vm.sender = direct_alice
     contract.open_challenge(
         pid,
         "https://example.com/challenge",

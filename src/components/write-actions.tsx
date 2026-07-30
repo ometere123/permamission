@@ -135,13 +135,16 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
   );
 }
 
-export function ChallengeReviewForm({ proposalId, status }: { proposalId: string; status: string }) {
+export function ChallengeReviewForm({ proposalId, status, proposer, steward }: { proposalId: string; status: string; proposer: string; steward: string }) {
   const wallet = useWallet();
   const txs = useTransactions();
   const [state, setState] = useState({ evidence: "", summary: "" });
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
-  const canChallenge = status === "APPROVED" || status === "REJECTED" || status === "NEEDS_EVIDENCE";
+  const connected = wallet.address?.toLowerCase();
+  const isProposer = connected === proposer.toLowerCase();
+  const isSteward = connected === steward.toLowerCase();
+  const canChallenge = status === "APPROVED" ? isSteward : (status === "REJECTED" || status === "NEEDS_EVIDENCE") && (isProposer || isSteward);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();

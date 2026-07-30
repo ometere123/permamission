@@ -180,10 +180,12 @@ class PermaMission(gl.Contract):
         proposal = self._require_proposal(proposal_id)
         if proposal.status not in (STATUS_APPROVED, STATUS_REJECTED, STATUS_NEEDS_EVIDENCE):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal decision cannot be challenged")
-        if gl.message.sender_address != proposal.proposer:
-            mission = self._require_mission(proposal.mission_id)
+        mission = self._require_mission(proposal.mission_id)
+        if proposal.status == STATUS_APPROVED:
             if gl.message.sender_address != mission.steward:
-                raise gl.vm.UserError(f"{ERROR_EXPECTED} Only proposer or steward can open challenge")
+                raise gl.vm.UserError(f"{ERROR_EXPECTED} Only mission steward can challenge an approved proposal")
+        elif gl.message.sender_address != proposal.proposer and gl.message.sender_address != mission.steward:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only proposer or steward can open challenge")
         self._require_len(challenge_url, 12, 360, "challenge url")
         self._require_len(challenge_summary, 60, 1600, "challenge summary")
         proposal.status = STATUS_CHALLENGED

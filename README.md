@@ -55,7 +55,7 @@ create_mission(...) payable         -> steward creates and funds a mission treas
 fund_mission(...) payable           -> anyone can add GEN to the mission
 submit_proposal(...)                -> builder submits plan + public evidence URL
 review_proposal(...)                -> validators fetch evidence and decide mission fit
-open_challenge(...)                 -> proposer/steward supplies new public evidence
+open_challenge(...)                 -> authorized party supplies new public evidence
 review_challenge(...)               -> validators re-review with challenge evidence
 release_payment(...)                -> steward releases GEN only after APPROVED
 close_mission(...)                  -> steward closes future submissions
@@ -117,12 +117,13 @@ Decision statuses:
 
 ```
 OPEN -> APPROVED | REJECTED | NEEDS_EVIDENCE
-APPROVED | REJECTED | NEEDS_EVIDENCE -> CHALLENGED
+APPROVED -> CHALLENGED                       steward only
+REJECTED | NEEDS_EVIDENCE -> CHALLENGED      proposer or steward
 CHALLENGED -> APPROVED | REJECTED | NEEDS_EVIDENCE
 APPROVED -> PAID
 ```
 
-`CHALLENGED` is the key iteration: payout is blocked until validators review the original evidence plus new challenge evidence.
+`CHALLENGED` is the key iteration: payout is blocked until validators review the original evidence plus new challenge evidence. A proposer can appeal a rejection or evidence gap. A steward can pause a suspicious approval before funds leave the treasury.
 
 ---
 
@@ -177,8 +178,8 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x220ED7681d123e1b82d6c068bA2813135e5f5582` |
-| Deployment tx | `0x64c7cbdd5f7158e7f7e97d1dbf672cfbfdbb8913175254791eff6b81273f6aa3` |
+| Contract | `0x68a028fc19Ca695203ad9c4930d742B32812A0E1` |
+| Deployment tx | `0xf0f2e1c0e957d90acd9b14b8a50cce131147a485557f3a2388cdcdc5b08e70c4` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -187,14 +188,14 @@ The upgraded deployment was exercised end-to-end with public IANA evidence:
 
 | Flow | Transaction |
 | --- | --- |
-| Create mission | `0xcc76d4b4f6368fba127353f0981b86ac52ac31ae2afa25033a761eafdf88e832` |
-| Fund mission | `0x2eacfd19fa370468a4e75cfe07287fae0a1a60d174da7e50c3ddf5e572b4cf8f` |
-| Submit proposal | `0x8066dd371d024d54c46373eacdf0b058146f86055328a200934a01796a4a34f4` |
-| First consensus review | `0x530cc2806045b69a2311b67d936633c63902ab11a0a2cba7733e6e8cca0827a6` |
-| Open challenge with new evidence | `0xced608b67b4db94eeee333dfc66b37cf0b5efff850447bcd4f3eb44a5c6f9890` |
-| Consensus review after challenge | `0xfd3d2e3061b4cbb4177613db24b0a967c50b9356ff844b86bb6d88e9e17d77e4` |
-| Release payment | `0xa51c1573582877f02a5cacd37f122d962913d6756a3f5ee40bf64e34fdae02ad` |
-| Close mission | `0x66e2679ad4bdf32a5336cd8b484d5e51a9fff3039bb1ba8bb1fb69fdd40635d5` |
+| Create mission | `0x5a88bc40615681fad5a32ecf6d8e8208066477bd53b9e949deabcae7f1e00103` |
+| Fund mission | `0xd5aeecbe7c50f96d31dcae7e40750768500962fcbe0306671493ef9a68addc40` |
+| Submit proposal | `0x39f5f6a6e4c55ed7135fbed9f65120f66efcea6b0ef87ac2e4b740a515154a82` |
+| First consensus review | `0x5db266f7062ad0edcfd77fc06bfc58452052092b21aa7aceb00ff25c96ac493a` |
+| Open challenge with new evidence | `0x9adc549064318ceff36ec574f574bf1b14d3675d15ea4e27dc33d97c9527ec6a` |
+| Consensus review after challenge | `0xe35c30a421b4f69126ae3cc59e55994090f1feee934b7c47ab8c6af6a089c267` |
+| Release payment | `0x31fe1026cb6b776ca16690c619354aa993088720981bcbf33045589820cce2ca` |
+| Close mission | `0x44749ea7005c0e2fe1bddb4e7422ecf93e3c25cc68a2bfed46ea6101addfbc2c` |
 
 The first review approved the proposal. The challenge added a second IANA source, validators fetched both sources, the second review approved again, and payout was released after that second verdict.
 
@@ -206,7 +207,7 @@ Current measured checks:
 
 ```bash
 python -m pytest tests\direct -v
-# 31 passed
+# 32 passed
 
 genvm-lint check contracts\PermaMission.py --json
 # ok: true, methods: 14
@@ -217,7 +218,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x220ED7681d123e1b82d6c068bA2813135e5f5582 npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x68a028fc19Ca695203ad9c4930d742B32812A0E1 npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -231,7 +232,7 @@ Direct tests cover:
 | Mission funding | funded creation, zero-value rejection, duplicate rejection, top-ups |
 | Proposal submission | indexing, missing mission rejection, zero amount rejection, closed mission rejection |
 | Consensus review | approve, reject, needs evidence, bad verdict clamp, bad score clamp |
-| Challenge flow | reopen decision, second review, challenge blocks payout, proposer/steward authorization |
+| Challenge flow | reopen decision, second review, challenge blocks payout, approval-only steward challenge, proposer/steward appeals |
 | Settlement | steward-only release, treasury shortfall, paid state, emitted transfer branch |
 | Lifecycle | steward-only close, inactive mission behavior, paged reads |
 
@@ -278,7 +279,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x220ED7681d123e1b82d6c068bA2813135e5f5582
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x68a028fc19Ca695203ad9c4930d742B32812A0E1
 ```
 
 Open http://localhost:3000.

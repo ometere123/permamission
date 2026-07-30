@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChallengeReviewForm, ProposalActionButtons } from "@/components/write-actions";
 import { TransactionRail } from "@/components/transaction-provider";
-import { getProposal } from "@/lib/genlayer/contract";
+import { getMission, getProposal } from "@/lib/genlayer/contract";
 import { displayTime, formatAttoGen, statusTone } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +11,7 @@ export default async function ProposalDetail({ params }: { params: Promise<{ pro
   const { proposalId } = await params;
   const proposal = await getProposal(proposalId);
   if (!proposal) notFound();
+  const mission = await getMission(proposal.mission_id);
   return (
     <main className="mx-auto grid max-w-7xl gap-8 px-5 py-10 lg:grid-cols-[1fr_360px]">
       <section>
@@ -61,7 +62,7 @@ export default async function ProposalDetail({ params }: { params: Promise<{ pro
       </section>
       <aside className="space-y-6">
         <ProposalActionButtons proposalId={proposal.id} status={proposal.status} />
-        <ChallengeReviewForm proposalId={proposal.id} status={proposal.status} />
+        <ChallengeReviewForm proposalId={proposal.id} status={proposal.status} proposer={proposal.proposer} steward={mission?.steward ?? ""} />
         <TransactionRail />
       </aside>
     </main>
