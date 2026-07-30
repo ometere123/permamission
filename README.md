@@ -184,8 +184,8 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94` |
-| Deployment tx | `0xcae850892cc0cece8c0f711a96eb43fbfce1d26c15099e42706f72582245ffd2` |
+| Contract | `0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F` |
+| Deployment tx | `0x2897d904fe8e94ecb6f4b4be265a8aa88756bbc6f826303626e7dbd8b7e48083` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -224,7 +224,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94 npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -287,7 +287,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F
 ```
 
 Open http://localhost:3000.

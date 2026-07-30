@@ -148,6 +148,8 @@ class PermaMission(gl.Contract):
         mission = self._require_mission(mission_id)
         if not mission.active:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Mission is inactive")
+        if gl.message.sender_address == mission.steward:
+            raise gl.vm.UserError(f"{ERROR_EXPECTED} Mission steward cannot submit to own mission")
         self._require_len(proposal_id, 3, 64, "proposal id")
         self._require_len(title, 4, 120, "proposal title")
         self._require_len(plan, 80, 2600, "proposal plan")

@@ -1,6 +1,15 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createAccount, createClient } from "genlayer-js";
 import { studionet, localnet, testnetAsimov, testnetBradbury } from "genlayer-js/chains";
+
+if (existsSync(".env.local")) {
+  for (const line of readFileSync(".env.local", "utf8").split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
+    const [key, ...value] = trimmed.split("=");
+    process.env[key] ??= value.join("=");
+  }
+}
 
 const chains = { studionet, localnet, testnetAsimov, testnetBradbury };
 const chainName = process.env.NEXT_PUBLIC_GENLAYER_CHAIN ?? "studionet";

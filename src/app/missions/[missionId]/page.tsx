@@ -42,7 +42,7 @@ export default async function MissionDetail({ params }: { params: Promise<{ miss
         </div>
       </section>
       <aside>
-        <ProposalForm missionId={mission.id} />
+        <ProposalForm missionId={mission.id} steward={mission.steward} />
       </aside>
     </main>
   );

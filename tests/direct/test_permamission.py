@@ -114,6 +114,12 @@ def test_submit_proposal_records_it(contract, direct_vm, direct_alice, direct_bo
     assert proposal["requested_amount"] == str(3 * GEN)
 
 
+def test_steward_cannot_submit_to_own_mission(contract, direct_vm, direct_alice):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    with direct_vm.expect_revert("steward cannot submit"):
+        submit_proposal(contract, direct_vm, direct_alice, mid)
+
+
 def test_submit_proposal_indexes_by_mission(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice)
     submit_proposal(contract, direct_vm, direct_bob, mid)

@@ -56,13 +56,15 @@ export function MissionForm() {
   );
 }
 
-export function ProposalForm({ missionId }: { missionId: string }) {
+export function ProposalForm({ missionId, steward }: { missionId: string; steward: string }) {
   const router = useRouter();
   const wallet = useWallet();
   const txs = useTransactions();
   const [state, setState] = useState({ id: "", title: "", amount: "10", plan: "", evidence: "" });
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const connected = wallet.address?.toLowerCase();
+  const isSteward = Boolean(connected && connected === steward.toLowerCase());
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -70,6 +72,7 @@ export function ProposalForm({ missionId }: { missionId: string }) {
     setBusy(true);
     try {
       const client = await wallet.getWriteClient();
+      if (isSteward) throw new Error("Use a proposer wallet. Mission stewards cannot submit to their own mission.");
       const hash = await writeContract(
         client,
         "submit_proposal",
@@ -97,7 +100,12 @@ export function ProposalForm({ missionId }: { missionId: string }) {
         <Area label="Plan" value={state.plan} onChange={(plan) => setState({ ...state, plan })} />
       </div>
       {error ? <p className="mt-4 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-100">{error}</p> : null}
-      <button className="seal-tab mt-6 px-5 py-3" disabled={busy}>{busy ? "Submitting..." : "Submit Proposal"}</button>
+      {isSteward ? (
+        <p className="mt-4 border border-amber-400/50 bg-amber-500/10 p-3 text-sm text-amber-100">
+          Switch to a proposer wallet. The contract rejects steward-submitted proposals for this mission.
+        </p>
+      ) : null}
+      <button className="seal-tab mt-6 px-5 py-3" disabled={busy || isSteward}>{busy ? "Submitting..." : "Submit Proposal"}</button>
     </form>
   );
 }

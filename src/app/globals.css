@@ -25,6 +25,10 @@
 
 * { box-sizing: border-box; }
 
+html {
+  font-size: 80%;
+}
+
 html, body {
   background: var(--coal-950);
   color: var(--ivory);
