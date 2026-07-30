@@ -41,6 +41,11 @@ function writeErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function refreshAfterConsensus(router: ReturnType<typeof useRouter>) {
+  router.refresh();
+  window.setTimeout(() => router.refresh(), 2500);
+}
+
 export function MissionForm() {
   const router = useRouter();
   const wallet = useWallet();
@@ -184,7 +189,7 @@ export function FundMissionForm({ missionId }: { missionId: string }) {
       setMessage("Funding transaction sent.");
       const receipt = await waitAccepted(client, hash);
       txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
-      router.refresh();
+      refreshAfterConsensus(router);
       setMessage(`Funding reached ${String(receipt.statusName ?? receipt.status)}.`);
     } catch (error) {
       setMessage(writeErrorMessage(error, "Funding failed."));
@@ -209,6 +214,7 @@ export function FundMissionForm({ missionId }: { missionId: string }) {
 }
 
 export function ProposalActionButtons({ proposalId, status }: { proposalId: string; status: string }) {
+  const router = useRouter();
   const wallet = useWallet();
   const txs = useTransactions();
   const [message, setMessage] = useState("");
@@ -222,6 +228,7 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
       setMessage("Transaction sent. Consensus can take several minutes.");
       const receipt = await waitAccepted(client, hash);
       txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      refreshAfterConsensus(router);
       setMessage(`Reached ${String(receipt.statusName ?? receipt.status)}.`);
     } catch (error) {
       setMessage(writeErrorMessage(error, "Write failed."));
@@ -242,6 +249,7 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
 }
 
 export function ChallengeReviewForm({ proposalId, status, proposer, steward }: { proposalId: string; status: string; proposer: string; steward: string }) {
+  const router = useRouter();
   const wallet = useWallet();
   const txs = useTransactions();
   const [state, setState] = useState({ evidence: "", summary: "" });
@@ -263,6 +271,7 @@ export function ChallengeReviewForm({ proposalId, status, proposer, steward }: {
       setMessage("Challenge opened. Run challenge review after it finalizes.");
       const receipt = await waitAccepted(client, hash);
       txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      refreshAfterConsensus(router);
       setMessage(`Challenge reached ${String(receipt.statusName ?? receipt.status)}.`);
     } catch (error) {
       setMessage(writeErrorMessage(error, "Challenge failed."));
