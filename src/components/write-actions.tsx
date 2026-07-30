@@ -1,0 +1,195 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { waitAccepted, writeContract } from "@/lib/genlayer/contract";
+import { parseGen } from "@/lib/format";
+import { useTransactions } from "./transaction-provider";
+import { useWallet } from "./wallet-provider";
+
+export function MissionForm() {
+  const router = useRouter();
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [state, setState] = useState({ id: "", name: "", charter: "", constraints: "", goal: "100", deposit: "1" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(
+        client,
+        "create_mission",
+        [state.id, state.name, state.charter, state.constraints, parseGen(state.goal)],
+        parseGen(state.deposit),
+      );
+      txs.track({ hash, label: `Create ${state.name}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "create_mission" });
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      router.push(`/missions/${state.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Create mission failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="folder p-6">
+      <div className="grid gap-4">
+        <Field label="Mission ID" value={state.id} onChange={(id) => setState({ ...state, id })} placeholder="open-civic-memory" />
+        <Field label="Name" value={state.name} onChange={(name) => setState({ ...state, name })} placeholder="Open Civic Memory" />
+        <Area label="Charter" value={state.charter} onChange={(charter) => setState({ ...state, charter })} />
+        <Area label="Constraints" value={state.constraints} onChange={(constraints) => setState({ ...state, constraints })} />
+        <div className="grid gap-4 md:grid-cols-2">
+          <Field label="Treasury Goal (GEN)" value={state.goal} onChange={(goal) => setState({ ...state, goal })} />
+          <Field label="Initial Deposit (GEN)" value={state.deposit} onChange={(deposit) => setState({ ...state, deposit })} />
+        </div>
+      </div>
+      {error ? <p className="mt-4 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-100">{error}</p> : null}
+      <button className="seal-tab mt-6 px-5 py-3" disabled={busy}>{busy ? "Submitting..." : "Create Mission"}</button>
+    </form>
+  );
+}
+
+export function ProposalForm({ missionId }: { missionId: string }) {
+  const router = useRouter();
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [state, setState] = useState({ id: "", title: "", amount: "10", plan: "", evidence: "" });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(
+        client,
+        "submit_proposal",
+        [state.id, missionId, state.title, parseGen(state.amount), state.plan, state.evidence],
+        0n,
+      );
+      txs.track({ hash, label: `Submit ${state.title}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "submit_proposal" });
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      router.push(`/proposals/${state.id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Submit proposal failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="folder p-6">
+      <div className="grid gap-4">
+        <Field label="Proposal ID" value={state.id} onChange={(id) => setState({ ...state, id })} placeholder="archive-water-notices" />
+        <Field label="Title" value={state.title} onChange={(title) => setState({ ...state, title })} />
+        <Field label="Requested Amount (GEN)" value={state.amount} onChange={(amount) => setState({ ...state, amount })} />
+        <Field label="Evidence URL" value={state.evidence} onChange={(evidence) => setState({ ...state, evidence })} placeholder="https://..." />
+        <Area label="Plan" value={state.plan} onChange={(plan) => setState({ ...state, plan })} />
+      </div>
+      {error ? <p className="mt-4 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-100">{error}</p> : null}
+      <button className="seal-tab mt-6 px-5 py-3" disabled={busy}>{busy ? "Submitting..." : "Submit Proposal"}</button>
+    </form>
+  );
+}
+
+export function ProposalActionButtons({ proposalId, status }: { proposalId: string; status: string }) {
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [message, setMessage] = useState("");
+
+  async function run(functionName: "review_proposal" | "release_payment") {
+    try {
+      setMessage("Waiting for wallet signature...");
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(client, functionName, [proposalId], 0n);
+      txs.track({ hash, label: `${functionName} ${proposalId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName });
+      setMessage("Transaction sent. Consensus can take several minutes.");
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      setMessage(`Reached ${String(receipt.statusName ?? receipt.status)}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Write failed.");
+    }
+  }
+
+  return (
+    <div className="manuscript-border bg-coal-900 p-5">
+      <div className="dossier-label">Actions</div>
+      <div className="mt-4 flex flex-wrap gap-3">
+        {(status === "OPEN" || status === "NEEDS_EVIDENCE" || status === "CHALLENGED") ? <button className="seal-tab px-4 py-3" onClick={() => run("review_proposal")}>Review by Consensus</button> : null}
+        {status === "APPROVED" ? <button className="tab-button" onClick={() => run("release_payment")}>Release GEN</button> : null}
+      </div>
+      {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
+    </div>
+  );
+}
+
+export function ChallengeReviewForm({ proposalId, status }: { proposalId: string; status: string }) {
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [state, setState] = useState({ evidence: "", summary: "" });
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const canChallenge = status === "APPROVED" || status === "REJECTED" || status === "NEEDS_EVIDENCE";
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    setBusy(true);
+    try {
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(client, "challenge_review", [proposalId, state.evidence, state.summary], 0n);
+      txs.track({ hash, label: `Challenge ${proposalId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "challenge_review" });
+      setMessage("Challenge submitted. Run consensus review again after it finalizes.");
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      setMessage(`Challenge reached ${String(receipt.statusName ?? receipt.status)}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Challenge failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!canChallenge) return null;
+
+  return (
+    <form onSubmit={submit} className="manuscript-border bg-coal-900 p-5">
+      <div className="dossier-label">Challenge Decision</div>
+      <div className="mt-4 grid gap-4">
+        <Field label="Challenge Evidence URL" value={state.evidence} onChange={(evidence) => setState({ ...state, evidence })} placeholder="https://..." />
+        <Area label="Challenge Summary" value={state.summary} onChange={(summary) => setState({ ...state, summary })} />
+      </div>
+      <button className="tab-button mt-5" disabled={busy}>{busy ? "Submitting..." : "Submit Challenge"}</button>
+      {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
+    </form>
+  );
+}
+
+function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {
+  return (
+    <label>
+      <span className="dossier-label">{label}</span>
+      <input className="field mt-2" value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} required />
+    </label>
+  );
+}
+
+function Area({ label, value, onChange }: { label: string; value: string; onChange: (value: string) => void }) {
+  return (
+    <label>
+      <span className="dossier-label">{label}</span>
+      <textarea className="field mt-2 min-h-36" value={value} onChange={(event) => onChange(event.target.value)} required />
+    </label>
+  );
+}

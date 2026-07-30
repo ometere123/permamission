@@ -1,0 +1,16 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">PermaMission mark</title>
+  <desc id="desc">A gold mission seal with a charter, guarded treasury, and consensus orbit.</desc>
+  <rect width="256" height="256" rx="48" fill="#171613"/>
+  <circle cx="128" cy="128" r="89" fill="#1F1D19" stroke="#C49A45" stroke-width="8"/>
+  <circle cx="128" cy="128" r="66" stroke="#7A5634" stroke-width="4" stroke-dasharray="9 10"/>
+  <path d="M96 67H148L173 92V187H96V67Z" fill="#EFE2C4" stroke="#C49A45" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M148 68V94H173" stroke="#7A5634" stroke-width="7" stroke-linejoin="round"/>
+  <path d="M111 115H157M111 134H145M111 153H160" stroke="#7A5634" stroke-width="8" stroke-linecap="round"/>
+  <circle cx="128" cy="128" r="29" fill="#171613" stroke="#C49A45" stroke-width="7"/>
+  <path d="M128 108L137 124L154 127L142 140L145 158L128 150L111 158L114 140L102 127L119 124L128 108Z" fill="#C49A45"/>
+  <circle cx="59" cy="128" r="9" fill="#C49A45"/>
+  <circle cx="197" cy="128" r="9" fill="#C49A45"/>
+  <circle cx="128" cy="59" r="9" fill="#C49A45"/>
+  <circle cx="128" cy="197" r="9" fill="#C49A45"/>
+</svg>
