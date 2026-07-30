@@ -10,6 +10,12 @@ PermaMission lets a community fund a durable mission, accept public work proposa
 
 This is a **Project** submission, not a standalone contract. The frontend and contract form one product loop: create a mission treasury, submit evidence-backed work, run validator consensus, challenge weak decisions with new evidence, and release funds only after an approved on-chain verdict.
 
+[Live app: coming soon](#development)
+
+<p align="center">
+  <img src="./public/permamission-proposal-flow.png" alt="PermaMission proposal detail showing consensus review evidence, challenge evidence, and payout state" width="900" />
+</p>
+
 ---
 
 ## The Problem
@@ -29,6 +35,24 @@ The usual alternatives reintroduce trust:
 | One-shot grant form | Disputed decisions have no clean evidence-based challenge path before payout. |
 
 PermaMission exists for the gap between deterministic treasury control and subjective mission judgement.
+
+---
+
+## Real-World Failure This Helps Prevent
+
+The concrete failure mode is not hypothetical: large public-goods funding rounds have already struggled with subjective mission alignment.
+
+In Optimism RetroPGF 3, Optimism later reported that the number of eligible applicants grew sharply, the results did not strongly reflect outsized impact, and the round struggled because impact was not defined in a way badgeholders could apply directly. The review also noted tension around rewards going to broad Ethereum public goods rather than work more directly tied to Optimism's own goals.
+
+PermaMission addresses that class of failure by forcing each payout through a mission-specific evidence gate:
+
+1. The mission charter and constraints are frozen in contract state.
+2. The proposal must include a public evidence URL.
+3. Validators fetch the evidence inside consensus.
+4. The verdict must compare the fetched evidence against the mission, not against popularity or reputation.
+5. If the decision is disputed, the challenge path adds new public evidence and blocks payout until a second consensus review.
+
+It does not try to solve every grant problem, such as Sybil identity attacks. It specifically targets **mission drift, weak evidence, and subjective payout decisions** in recurring public-purpose treasuries.
 
 ---
 
