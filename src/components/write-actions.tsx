@@ -7,6 +7,32 @@ import { parseGen } from "@/lib/format";
 import { useTransactions } from "./transaction-provider";
 import { useWallet } from "./wallet-provider";
 
+const DEMO_MISSION = {
+  id: "mission-public-security-guides",
+  name: "Public Security Guide Fund",
+  charter: "Fund concise, public security education guides that translate official cyber guidance into plain-language checklists, templates, and review prompts for small community organizations.",
+  constraints: "Work must cite durable public sources, avoid private or paywalled evidence, and produce reusable artifacts that a non-technical community maintainer can apply.",
+  goal: "25",
+  deposit: "8",
+};
+
+const DEMO_PROPOSAL = {
+  id: "proposal-secure-by-design-guide-pack",
+  title: "Secure by Design Guide Pack",
+  amount: "3",
+  evidence: "https://www.cisa.gov/resources-tools/resources/secure-by-design",
+  plan: "Create a community guide pack summarizing secure-by-design principles into onboarding checklists, workshop slides, maintainer review prompts, and a public source index. The work will turn the official guidance into practical materials for small organizations while preserving source URLs for validator review.",
+};
+
+const DEMO_CHALLENGE = {
+  evidence: "https://www.cisa.gov/securebydesign",
+  summary: "This official CISA Secure by Design program page gives broader public context for the guidance and helps validators decide whether the proposal truly advances the mission rather than merely linking a related resource.",
+};
+
+function demoSuffix() {
+  return Date.now().toString().slice(-6);
+}
+
 export function MissionForm() {
   const router = useRouter();
   const wallet = useWallet();
@@ -40,6 +66,13 @@ export function MissionForm() {
 
   return (
     <form onSubmit={submit} className="folder p-6">
+      <button
+        type="button"
+        className="tab-button mb-5"
+        onClick={() => setState({ ...DEMO_MISSION, id: `${DEMO_MISSION.id}-${demoSuffix()}` })}
+      >
+        Use demo data
+      </button>
       <div className="grid gap-4">
         <Field label="Mission ID" value={state.id} onChange={(id) => setState({ ...state, id })} placeholder="open-civic-memory" />
         <Field label="Name" value={state.name} onChange={(name) => setState({ ...state, name })} placeholder="Open Civic Memory" />
@@ -92,6 +125,13 @@ export function ProposalForm({ missionId, steward }: { missionId: string; stewar
 
   return (
     <form onSubmit={submit} className="folder p-6">
+      <button
+        type="button"
+        className="tab-button mb-5"
+        onClick={() => setState({ ...DEMO_PROPOSAL, id: `${DEMO_PROPOSAL.id}-${demoSuffix()}` })}
+      >
+        Use demo data
+      </button>
       <div className="grid gap-4">
         <Field label="Proposal ID" value={state.id} onChange={(id) => setState({ ...state, id })} placeholder="archive-water-notices" />
         <Field label="Title" value={state.title} onChange={(title) => setState({ ...state, title })} />
@@ -178,6 +218,13 @@ export function ChallengeReviewForm({ proposalId, status, proposer, steward }: {
   return (
     <form onSubmit={submit} className="manuscript-border bg-coal-900 p-5">
       <div className="dossier-label">Challenge Decision</div>
+      <button
+        type="button"
+        className="tab-button mt-4"
+        onClick={() => setState(DEMO_CHALLENGE)}
+      >
+        Use demo data
+      </button>
       <div className="mt-4 grid gap-4">
         <Field label="Challenge Evidence URL" value={state.evidence} onChange={(evidence) => setState({ ...state, evidence })} placeholder="https://..." />
         <Area label="Challenge Summary" value={state.summary} onChange={(summary) => setState({ ...state, summary })} />
