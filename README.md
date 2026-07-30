@@ -135,7 +135,7 @@ The frontend is a real contract interface, not a demo shell.
 - `/` shows the live contract summary and recent contract-read missions/proposals.
 - `/missions` browses mission treasuries from the deployed contract.
 - `/missions/new` creates and funds a mission.
-- `/missions/[id]` shows a mission and lets builders submit proposals.
+- `/missions/[id]` shows a mission, lets anyone add GEN, and lets builders submit proposals.
 - `/proposals` browses proposal decisions from the contract.
 - `/proposals/[id]` shows evidence, rationale, challenge evidence, review actions, and payout actions.
 - `/dashboard` reads the connected wallet's contract profile: stewarded missions, submitted proposals, funded missions, payouts, and open challenge work.

@@ -165,6 +165,49 @@ export function ProposalForm({ missionId, steward }: { missionId: string; stewar
   );
 }
 
+export function FundMissionForm({ missionId }: { missionId: string }) {
+  const router = useRouter();
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [amount, setAmount] = useState("1");
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    setBusy(true);
+    try {
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(client, "fund_mission", [missionId], parseGen(amount));
+      txs.track({ hash, label: `Fund ${missionId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "fund_mission" });
+      setMessage("Funding transaction sent.");
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      router.refresh();
+      setMessage(`Funding reached ${String(receipt.statusName ?? receipt.status)}.`);
+    } catch (error) {
+      setMessage(writeErrorMessage(error, "Funding failed."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="folder p-6">
+      <div className="dossier-label">Fund Mission</div>
+      <p className="mt-3 text-sm leading-6 text-margin">
+        Anyone can add GEN to this mission treasury. Funding creates a public contribution receipt, but it does not grant payout control.
+      </p>
+      <div className="mt-5">
+        <Field label="Amount (GEN)" value={amount} onChange={setAmount} />
+      </div>
+      <button className="seal-tab mt-5 px-5 py-3" disabled={busy}>{busy ? "Funding..." : "Add GEN"}</button>
+      {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
+    </form>
+  );
+}
+
 export function ProposalActionButtons({ proposalId, status }: { proposalId: string; status: string }) {
   const wallet = useWallet();
   const txs = useTransactions();

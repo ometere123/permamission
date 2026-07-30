@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProposalForm } from "@/components/write-actions";
+import { FundMissionForm, ProposalForm } from "@/components/write-actions";
 import { getMission, listProposals } from "@/lib/genlayer/contract";
 import { displayTime, formatAttoGen, statusTone } from "@/lib/format";
 
@@ -41,7 +41,8 @@ export default async function MissionDetail({ params }: { params: Promise<{ miss
           </div>
         </div>
       </section>
-      <aside>
+      <aside className="space-y-6">
+        <FundMissionForm missionId={mission.id} />
         <ProposalForm missionId={mission.id} steward={mission.steward} />
       </aside>
     </main>
