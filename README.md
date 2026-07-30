@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="./public/permamission-mark.svg" alt="PermaMission" width="160" />
-</p>
-
 # PermaMission
 
 **Mission-bound treasury review on GenLayer.**
@@ -10,11 +6,7 @@ PermaMission lets a community fund a durable mission, accept public work proposa
 
 This is a **Project** submission, not a standalone contract. The frontend and contract form one product loop: create a mission treasury, submit evidence-backed work, run validator consensus, challenge weak decisions with new evidence, and release funds only after an approved on-chain verdict.
 
-[Live app: coming soon](#development)
-
-<p align="center">
-  <img src="./public/permamission-proposal-flow.png" alt="PermaMission proposal detail showing consensus review evidence, challenge evidence, and payout state" width="900" />
-</p>
+[Live app](https://permamission.vercel.app/)
 
 ---
 
