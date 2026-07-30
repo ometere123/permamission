@@ -39,7 +39,28 @@ export type Summary = {
   steward: string;
   mission_count: number | string;
   proposal_count: number | string;
+  contribution_count: number | string;
   balance: string;
+};
+
+export type Contribution = {
+  id: string;
+  mission_id: string;
+  contributor: string;
+  amount: string;
+  first_funded_at: string;
+  last_funded_at: string;
+};
+
+export type Profile = {
+  account: string;
+  stewarded_missions: Mission[];
+  submitted_proposals: Proposal[];
+  funded_missions: Contribution[];
+  paid_proposals: Proposal[];
+  open_challenges: Proposal[];
+  funded_total: string;
+  earned_total: string;
 };
 
 export type TxStage =

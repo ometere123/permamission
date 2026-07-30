@@ -19,6 +19,8 @@ const required = [
   "get_summary",
   "list_missions",
   "list_proposals",
+  "list_contributions",
+  "get_profile",
   "get_mission",
   "get_proposal",
 ];

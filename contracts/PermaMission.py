@@ -67,12 +67,25 @@ class Proposal:
     released_to: Address
 
 
+@allow_storage
+@dataclass
+class Contribution:
+    id: str
+    mission_id: str
+    contributor: Address
+    amount: u256
+    first_funded_at: str
+    last_funded_at: str
+
+
 class PermaMission(gl.Contract):
     steward: Address
     mission_ids: DynArray[str]
     proposal_ids: DynArray[str]
+    contribution_ids: DynArray[str]
     missions: TreeMap[str, Mission]
     proposals: TreeMap[str, Proposal]
+    contributions: TreeMap[str, Contribution]
     deposits_by_mission: TreeMap[str, u256]
 
     def __init__(self):
@@ -112,6 +125,7 @@ class PermaMission(gl.Contract):
         )
         self.mission_ids.append(mission_id)
         self.deposits_by_mission[mission_id] = gl.message.value
+        self._record_contribution(mission_id, gl.message.sender_address, gl.message.value)
 
     @gl.public.write.payable
     def fund_mission(self, mission_id: str) -> None:
@@ -119,6 +133,7 @@ class PermaMission(gl.Contract):
         if gl.message.value == u256(0):
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Funding value must be above zero")
         self.deposits_by_mission[mission_id] = self.deposits_by_mission.get(mission_id, u256(0)) + gl.message.value
+        self._record_contribution(mission_id, gl.message.sender_address, gl.message.value)
 
     @gl.public.write
     def submit_proposal(
@@ -285,6 +300,7 @@ class PermaMission(gl.Contract):
             "mission_count": len(self.mission_ids),
             "proposal_count": len(self.proposal_ids),
             "balance": str(self.balance),
+            "contribution_count": len(self.contribution_ids),
         }
 
     @gl.public.view
@@ -313,12 +329,94 @@ class PermaMission(gl.Contract):
         return out
 
     @gl.public.view
+    def list_contributions(self, account: Address, offset: u256, limit: u256) -> list:
+        out = []
+        stop = min(len(self.contribution_ids), int(offset + limit))
+        i = int(offset)
+        while i < stop:
+            cid = self.contribution_ids[i]
+            c = self.contributions[cid]
+            if str(account) == "0x0000000000000000000000000000000000000000" or c.contributor == account:
+                out.append(self._contribution_dict(c))
+            i += 1
+        return out
+
+    @gl.public.view
+    def get_profile(self, account: Address) -> dict:
+        stewarded = []
+        submitted = []
+        funded = []
+        paid = []
+        challenges = []
+        funded_total = u256(0)
+        earned_total = u256(0)
+
+        i = 0
+        while i < len(self.mission_ids):
+            m = self.missions[self.mission_ids[i]]
+            if m.steward == account:
+                stewarded.append(self._mission_dict(m))
+            i += 1
+
+        i = 0
+        while i < len(self.proposal_ids):
+            p = self.proposals[self.proposal_ids[i]]
+            if p.proposer == account:
+                submitted.append(self._proposal_dict(p))
+            if p.released_to == account and p.paid_amount > u256(0):
+                paid.append(self._proposal_dict(p))
+                earned_total += p.paid_amount
+            if p.status == STATUS_CHALLENGED:
+                m = self._require_mission(p.mission_id)
+                if p.proposer == account or m.steward == account:
+                    challenges.append(self._proposal_dict(p))
+            i += 1
+
+        i = 0
+        while i < len(self.contribution_ids):
+            c = self.contributions[self.contribution_ids[i]]
+            if c.contributor == account:
+                funded.append(self._contribution_dict(c))
+                funded_total += c.amount
+            i += 1
+
+        return {
+            "account": str(account),
+            "stewarded_missions": stewarded,
+            "submitted_proposals": submitted,
+            "funded_missions": funded,
+            "paid_proposals": paid,
+            "open_challenges": challenges,
+            "funded_total": str(funded_total),
+            "earned_total": str(earned_total),
+        }
+
+    @gl.public.view
     def get_mission(self, mission_id: str) -> dict:
         return self._mission_dict(self._require_mission(mission_id))
 
     @gl.public.view
     def get_proposal(self, proposal_id: str) -> dict:
         return self._proposal_dict(self._require_proposal(proposal_id))
+
+    def _record_contribution(self, mission_id: str, contributor: Address, amount: u256) -> None:
+        cid = self._contribution_id(mission_id, contributor)
+        now = self._now()
+        if cid in self.contributions:
+            contribution = self.contributions[cid]
+            contribution.amount += amount
+            contribution.last_funded_at = now
+            self.contributions[cid] = contribution
+            return
+        self.contributions[cid] = Contribution(
+            id=cid,
+            mission_id=mission_id,
+            contributor=contributor,
+            amount=amount,
+            first_funded_at=now,
+            last_funded_at=now,
+        )
+        self.contribution_ids.append(cid)
 
     def _consensus_review(
         self,
@@ -407,6 +505,9 @@ Rationale wording may differ, but it must cite the same decisive evidence and mu
             return value
         return value[:limit]
 
+    def _contribution_id(self, mission_id: str, contributor: Address) -> str:
+        return f"{mission_id}:{str(contributor)}"
+
     def _mission_dict(self, m: Mission) -> dict:
         return {
             "id": m.id,
@@ -444,4 +545,14 @@ Rationale wording may differ, but it must cite the same decisive evidence and mu
             "challenged_at": p.challenged_at,
             "paid_amount": str(p.paid_amount),
             "released_to": str(p.released_to),
+        }
+
+    def _contribution_dict(self, c: Contribution) -> dict:
+        return {
+            "id": c.id,
+            "mission_id": c.mission_id,
+            "contributor": str(c.contributor),
+            "amount": str(c.amount),
+            "first_funded_at": c.first_funded_at,
+            "last_funded_at": c.last_funded_at,
         }

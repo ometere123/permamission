@@ -2,7 +2,7 @@ import { TransactionStatus } from "genlayer-js/types";
 import type { CalldataEncodable, GenLayerClient, TransactionHash } from "genlayer-js/types";
 import { CONTRACT_ADDRESS, REQUIRED_METHODS } from "./config";
 import { createReadClient } from "./read-client";
-import type { Mission, Proposal, Summary } from "../types";
+import type { Contribution, Mission, Profile, Proposal, Summary } from "../types";
 
 type Client = GenLayerClient<typeof import("./config").chain>;
 
@@ -45,6 +45,17 @@ export async function listProposals(missionId = ""): Promise<Proposal[]> {
   }))) ?? [];
 }
 
+export async function listContributions(account: `0x${string}`): Promise<Contribution[]> {
+  if (!CONTRACT_ADDRESS) return [];
+  const address = CONTRACT_ADDRESS;
+  const client = createReadClient();
+  return (await readMaybe<Contribution[]>(() => client.readContract({
+    address,
+    functionName: "list_contributions",
+    args: [account, 0n, 100n],
+  }))) ?? [];
+}
+
 export async function getMission(id: string): Promise<Mission | undefined> {
   if (!CONTRACT_ADDRESS) return undefined;
   const address = CONTRACT_ADDRESS;
@@ -57,6 +68,13 @@ export async function getProposal(id: string): Promise<Proposal | undefined> {
   const address = CONTRACT_ADDRESS;
   const client = createReadClient();
   return readMaybe<Proposal>(() => client.readContract({ address, functionName: "get_proposal", args: [id] }));
+}
+
+export async function getProfile(account: `0x${string}`): Promise<Profile | undefined> {
+  if (!CONTRACT_ADDRESS) return undefined;
+  const address = CONTRACT_ADDRESS;
+  const client = createReadClient();
+  return readMaybe<Profile>(() => client.readContract({ address, functionName: "get_profile", args: [account] }));
 }
 
 export async function writeContract(
@@ -81,6 +99,7 @@ function emptySummary(): Summary {
     steward: "",
     mission_count: 0,
     proposal_count: 0,
+    contribution_count: 0,
     balance: "0",
   };
 }

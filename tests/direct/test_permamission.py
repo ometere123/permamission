@@ -80,6 +80,25 @@ def test_fund_mission_increases_treasury(contract, direct_vm, direct_alice, dire
     assert contract.get_mission(mid)["treasury_available"] == str(5 * GEN)
 
 
+def test_funding_records_contribution_profile(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice, value=GEN)
+    direct_vm.sender = direct_bob
+    direct_vm.value = 4 * GEN
+    contract.fund_mission(mid)
+    direct_vm.value = 2 * GEN
+    contract.fund_mission(mid)
+    direct_vm.value = 0
+
+    contributions = contract.list_contributions(direct_bob, 0, 10)
+    profile = contract.get_profile(direct_bob)
+
+    assert len(contributions) == 1
+    assert contributions[0]["mission_id"] == mid
+    assert contributions[0]["amount"] == str(6 * GEN)
+    assert profile["funded_total"] == str(6 * GEN)
+    assert profile["funded_missions"][0]["mission_id"] == mid
+
+
 def test_fund_mission_requires_value(contract, direct_vm, direct_alice):
     mid = create_mission(contract, direct_vm, direct_alice)
     direct_vm.value = 0
@@ -283,6 +302,23 @@ def test_release_payment_moves_to_paid(contract, direct_vm, direct_alice, direct
     assert proposal["status"] == "PAID"
     assert proposal["paid_amount"] == str(3 * GEN)
     assert contract.get_mission(mid)["treasury_available"] == str(7 * GEN)
+
+
+def test_profile_tracks_stewarded_submitted_and_paid(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice, value=10 * GEN)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid, amount=3 * GEN)
+    mock_review(direct_vm, "APPROVE", "HIGH")
+    contract.review_proposal(pid)
+    direct_vm.sender = direct_alice
+    contract.release_payment(pid)
+
+    steward_profile = contract.get_profile(direct_alice)
+    proposer_profile = contract.get_profile(direct_bob)
+
+    assert steward_profile["stewarded_missions"][0]["id"] == mid
+    assert proposer_profile["submitted_proposals"][0]["id"] == pid
+    assert proposer_profile["paid_proposals"][0]["id"] == pid
+    assert proposer_profile["earned_total"] == str(3 * GEN)
 
 
 def test_release_fails_when_treasury_short(contract, direct_vm, direct_alice, direct_bob):

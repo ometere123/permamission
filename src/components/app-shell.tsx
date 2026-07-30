@@ -15,6 +15,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <Link className="tab-button" href="/missions">Missions</Link>
             <Link className="tab-button" href="/missions/new">New Mission</Link>
             <Link className="tab-button" href="/proposals">Proposals</Link>
+            <Link className="tab-button" href="/dashboard">Dashboard</Link>
           </nav>
           <WalletPanel />
         </div>

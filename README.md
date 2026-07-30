@@ -51,14 +51,15 @@ It does not try to solve every grant problem, such as Sybil identity attacks. It
 ## What PermaMission Does
 
 ```
-create_mission(...) payable         -> steward creates and funds a mission treasury
-fund_mission(...) payable           -> anyone can add GEN to the mission
+create_mission(...) payable         -> steward creates, funds, and receives a funding receipt
+fund_mission(...) payable           -> anyone can add GEN and receive a funding receipt
 submit_proposal(...)                -> builder submits plan + public evidence URL
 review_proposal(...)                -> validators fetch evidence and decide mission fit
 open_challenge(...)                 -> authorized party supplies new public evidence
 review_challenge(...)               -> validators re-review with challenge evidence
 release_payment(...)                -> steward releases GEN only after APPROVED
 close_mission(...)                  -> steward closes future submissions
+get_profile(...)                    -> read an address dashboard from contract state
 ```
 
 The reusable primitive is a **mission-bound treasury gate**: qualitative public-purpose funding controlled by contract-side evidence review and validator consensus.
@@ -79,7 +80,7 @@ PermaMission needs GenLayer because the deciding party cannot be the steward, pr
 | Contract-side web access | `review_proposal` fetches evidence URLs with `gl.nondet.web.render`. |
 | LLM judgement | The review interprets prose mission constraints against public evidence. |
 | Equivalence principle | `prompt_comparative` compares semantic decision categories, not JSON formatting. |
-| State as source of truth | Missions, proposals, verdicts, challenge evidence, and payout state live in the contract. |
+| State as source of truth | Missions, contributions, profiles, proposals, verdicts, challenge evidence, and payout state live in the contract. |
 | Value movement | `release_payment` emits the GEN transfer only after an approved decision. |
 
 The model is asked what the evidence proves. The contract decides which state transition and payout branch are allowed.
@@ -137,6 +138,7 @@ The frontend is a real contract interface, not a demo shell.
 - `/missions/[id]` shows a mission and lets builders submit proposals.
 - `/proposals` browses proposal decisions from the contract.
 - `/proposals/[id]` shows evidence, rationale, challenge evidence, review actions, and payout actions.
+- `/dashboard` reads the connected wallet's contract profile: stewarded missions, submitted proposals, funded missions, payouts, and open challenge work.
 
 Wallet support:
 
@@ -148,6 +150,8 @@ Wallet support:
 
 There is no database and no seeded demo data. If no contract is configured, the UI renders empty contract-read states.
 
+Funder receipts are also contract state. Adding GEN does not grant voting rights or payout control, but it does create a public contribution record that appears in the funder's dashboard.
+
 ---
 
 ## Contract API
@@ -155,7 +159,7 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | Method | Type | Purpose |
 | --- | --- | --- |
 | `create_mission(mission_id, name, charter, constraints, treasury_goal)` | payable write | Create and fund a mission treasury. |
-| `fund_mission(mission_id)` | payable write | Add GEN to a mission treasury. |
+| `fund_mission(mission_id)` | payable write | Add GEN to a mission treasury and update contributor receipts. |
 | `submit_proposal(proposal_id, mission_id, title, requested_amount, plan, evidence_url)` | write | Submit a public evidence-backed proposal. |
 | `review_proposal(proposal_id)` | consensus write | Fetch evidence and decide mission fit. |
 | `open_challenge(proposal_id, challenge_url, challenge_summary)` | write | Reopen a decision with new public evidence. |
@@ -166,6 +170,8 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | `get_summary()` | view | Contract-level counters and balance. |
 | `list_missions(offset, limit)` | view | Paged mission records. |
 | `list_proposals(mission_id, offset, limit)` | view | Paged proposal records. |
+| `list_contributions(account, offset, limit)` | view | Paged funding receipts, optionally filtered by contributor. |
+| `get_profile(account)` | view | Address dashboard for stewarding, funding, proposing, payouts, and challenge work. |
 | `get_mission(mission_id)` | view | Single mission record. |
 | `get_proposal(proposal_id)` | view | Single proposal record. |
 
@@ -178,8 +184,8 @@ There is no database and no seeded demo data. If no contract is configured, the 
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x68a028fc19Ca695203ad9c4930d742B32812A0E1` |
-| Deployment tx | `0xf0f2e1c0e957d90acd9b14b8a50cce131147a485557f3a2388cdcdc5b08e70c4` |
+| Contract | `0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64` |
+| Deployment tx | `0x5fed2b56d2c6aa81df987f07889e3fe48c95d7fb4beb466f2e148d78dbb1f332` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -188,14 +194,14 @@ The upgraded deployment was exercised end-to-end with public IANA evidence:
 
 | Flow | Transaction |
 | --- | --- |
-| Create mission | `0x5a88bc40615681fad5a32ecf6d8e8208066477bd53b9e949deabcae7f1e00103` |
-| Fund mission | `0xd5aeecbe7c50f96d31dcae7e40750768500962fcbe0306671493ef9a68addc40` |
-| Submit proposal | `0x39f5f6a6e4c55ed7135fbed9f65120f66efcea6b0ef87ac2e4b740a515154a82` |
-| First consensus review | `0x5db266f7062ad0edcfd77fc06bfc58452052092b21aa7aceb00ff25c96ac493a` |
-| Open challenge with new evidence | `0x9adc549064318ceff36ec574f574bf1b14d3675d15ea4e27dc33d97c9527ec6a` |
-| Consensus review after challenge | `0xe35c30a421b4f69126ae3cc59e55994090f1feee934b7c47ab8c6af6a089c267` |
-| Release payment | `0x31fe1026cb6b776ca16690c619354aa993088720981bcbf33045589820cce2ca` |
-| Close mission | `0x44749ea7005c0e2fe1bddb4e7422ecf93e3c25cc68a2bfed46ea6101addfbc2c` |
+| Create mission | `0x7d8b9ece51bb3de47fb0e358d9c88aae9706af963c26d739241be5ceddc37261` |
+| Fund mission | `0xc4f224c174df6654d65bb20451b5e2eefc7015f990aab73d0c9f8220660b64ca` |
+| Submit proposal | `0xde924950a70d9a2501ec5f45ff5a6e455af3174c7cd814829117e80ad4a0c938` |
+| First consensus review | `0x847cc31ce5410f6ce9c143c641b163c2be1595328551754f0a38459c619aa6e0` |
+| Open challenge with new evidence | `0xbf65686b6c15913dbfd2d96a9190cfe0478f0d539bc6c8f47a418f726786ffe2` |
+| Consensus review after challenge | `0x9c9a1848fc42f2fc168d7b9f6188c2061b218690893acc0e6a5591bef81a824a` |
+| Release payment | `0x3602a5078c66db357e8cedb39acb853fb5af6466f310975a4cfd6a1ff1661427` |
+| Close mission | `0x9f8d42bf3e3a95c52a4e260d57ae544e46220461c3b60802d689a5bc4adac1f2` |
 
 The first review approved the proposal. The challenge added a second IANA source, validators fetched both sources, the second review approved again, and payout was released after that second verdict.
 
@@ -207,10 +213,10 @@ Current measured checks:
 
 ```bash
 python -m pytest tests\direct -v
-# 32 passed
+# 34 passed
 
 genvm-lint check contracts\PermaMission.py --json
-# ok: true, methods: 14
+# ok: true, methods: 16
 
 npm run lint
 # passed
@@ -218,7 +224,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x68a028fc19Ca695203ad9c4930d742B32812A0E1 npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64 npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -229,11 +235,12 @@ Direct tests cover:
 
 | Area | Cases |
 | --- | --- |
-| Mission funding | funded creation, zero-value rejection, duplicate rejection, top-ups |
+| Mission funding | funded creation, zero-value rejection, duplicate rejection, top-ups, contribution receipts |
 | Proposal submission | indexing, missing mission rejection, zero amount rejection, closed mission rejection |
 | Consensus review | approve, reject, needs evidence, bad verdict clamp, bad score clamp |
 | Challenge flow | reopen decision, second review, challenge blocks payout, approval-only steward challenge, proposer/steward appeals |
 | Settlement | steward-only release, treasury shortfall, paid state, emitted transfer branch |
+| Profiles | stewarded missions, submitted proposals, funding receipts, earned payouts |
 | Lifecycle | steward-only close, inactive mission behavior, paged reads |
 
 ---
@@ -252,6 +259,7 @@ src/
   app/                     Next.js App Router pages
     missions/              Mission list, creation, detail
     proposals/             Proposal list and detail
+    dashboard/             Connected-wallet profile dashboard
   components/
     app-shell.tsx          Layout, logo, navigation
     wallet-panel.tsx       Injected/generated wallet UI
@@ -279,7 +287,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x68a028fc19Ca695203ad9c4930d742B32812A0E1
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64
 ```
 
 Open http://localhost:3000.
