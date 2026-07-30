@@ -267,8 +267,6 @@ class PermaMission(gl.Contract):
     def release_payment(self, proposal_id: str) -> None:
         proposal = self._require_proposal(proposal_id)
         mission = self._require_mission(proposal.mission_id)
-        if gl.message.sender_address != mission.steward:
-            raise gl.vm.UserError(f"{ERROR_EXPECTED} Only mission steward can release payout")
         if proposal.status != STATUS_APPROVED:
             raise gl.vm.UserError(f"{ERROR_EXPECTED} Proposal is not approved")
         available = self.deposits_by_mission.get(proposal.mission_id, u256(0))

@@ -57,7 +57,7 @@ submit_proposal(...)                -> builder submits plan + public evidence UR
 review_proposal(...)                -> validators fetch evidence and decide mission fit
 open_challenge(...)                 -> authorized party supplies new public evidence
 review_challenge(...)               -> validators re-review with challenge evidence
-release_payment(...)                -> steward releases GEN only after APPROVED
+release_payment(...)                -> anyone can execute the approved payout path
 close_mission(...)                  -> steward closes future submissions
 get_profile(...)                    -> read an address dashboard from contract state
 ```
@@ -81,7 +81,7 @@ PermaMission needs GenLayer because the deciding party cannot be the steward, pr
 | LLM judgement | The review interprets prose mission constraints against public evidence. |
 | Equivalence principle | `prompt_comparative` compares semantic decision categories, not JSON formatting. |
 | State as source of truth | Missions, contributions, profiles, proposals, verdicts, challenge evidence, and payout state live in the contract. |
-| Value movement | `release_payment` emits the GEN transfer only after an approved decision. |
+| Value movement | `release_payment` emits the GEN transfer only after an approved decision; any caller can execute it, but the contract fixes the proposer as recipient. |
 
 The model is asked what the evidence proves. The contract decides which state transition and payout branch are allowed.
 
@@ -164,7 +164,7 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | `review_proposal(proposal_id)` | consensus write | Fetch evidence and decide mission fit. |
 | `open_challenge(proposal_id, challenge_url, challenge_summary)` | write | Reopen a decision with new public evidence. |
 | `review_challenge(proposal_id)` | consensus write | Fetch original plus challenge evidence and re-decide mission fit. |
-| `release_payment(proposal_id)` | write | Steward releases GEN after approval. |
+| `release_payment(proposal_id)` | write | Permissionlessly releases GEN after approval to the recorded proposer. |
 | `mark_paid(proposal_id)` | write | Compatibility alias for `release_payment`. |
 | `close_mission(mission_id)` | write | Close future submissions for a mission. |
 | `get_summary()` | view | Contract-level counters and balance. |
@@ -184,8 +184,8 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F` |
-| Deployment tx | `0x2897d904fe8e94ecb6f4b4be265a8aa88756bbc6f826303626e7dbd8b7e48083` |
+| Contract | `0x73770B6a055855192A510C8E70DB7c6488569809` |
+| Deployment tx | `0x11ecaff505119848fdc023a3557c081c3f7f1cb1029063ae770f68c9d5c4b197` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -213,7 +213,7 @@ Current measured checks:
 
 ```bash
 python -m pytest tests\direct -v
-# 34 passed
+# 35 passed
 
 genvm-lint check contracts\PermaMission.py --json
 # ok: true, methods: 16
@@ -224,7 +224,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x73770B6a055855192A510C8E70DB7c6488569809 npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -239,7 +239,7 @@ Direct tests cover:
 | Proposal submission | indexing, missing mission rejection, zero amount rejection, closed mission rejection |
 | Consensus review | approve, reject, needs evidence, bad verdict clamp, bad score clamp |
 | Challenge flow | reopen decision, second review, challenge blocks payout, approval-only steward challenge, proposer/steward appeals |
-| Settlement | steward-only release, treasury shortfall, paid state, emitted transfer branch |
+| Settlement | permissionless approved release, treasury shortfall, paid state, emitted transfer branch |
 | Profiles | stewarded missions, submitted proposals, funding receipts, earned payouts |
 | Lifecycle | steward-only close, inactive mission behavior, paged reads |
 
@@ -287,7 +287,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x48E54FaD9cb0cf36454B9b4618F0250eB70A139F
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x73770B6a055855192A510C8E70DB7c6488569809
 ```
 
 Open http://localhost:3000.
@@ -299,4 +299,4 @@ Open http://localhost:3000.
 - StudioNet balances are simulated. The project proves contract state transitions, consensus review shape, and emitted transfer branches in StudioNet, not production GEN settlement on a value-bearing mainnet.
 - Evidence URLs should be stable public pages. Validators judge what they fetch during the review transaction.
 - `NEEDS_EVIDENCE` is deliberately conservative. It blocks payout until better evidence is submitted or the proposal is reviewed again.
-- The current payout split is simple: approved proposals can be released in full by the steward. More granular funding bands could be added later.
+- The current payout split is simple: approved proposals are released in full to the proposer. More granular funding bands could be added later.

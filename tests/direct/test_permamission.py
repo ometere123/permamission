@@ -287,14 +287,16 @@ def test_release_requires_approval(contract, direct_vm, direct_alice, direct_bob
         contract.release_payment(pid)
 
 
-def test_only_steward_can_release(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
+def test_anyone_can_release_approved_payout(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
     mid = create_mission(contract, direct_vm, direct_alice)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
     direct_vm.sender = direct_charlie
-    with direct_vm.expect_revert("Only mission steward"):
-        contract.release_payment(pid)
+    contract.release_payment(pid)
+    proposal = contract.get_proposal(pid)
+    assert proposal["status"] == "PAID"
+    assert proposal["released_to"] == str(direct_bob)
 
 
 def test_release_payment_moves_to_paid(contract, direct_vm, direct_alice, direct_bob):
