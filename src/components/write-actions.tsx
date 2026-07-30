@@ -131,6 +131,18 @@ export function ProposalForm({ missionId, steward }: { missionId: string; stewar
     }
   }
 
+  if (isSteward) {
+    return (
+      <div className="folder p-6">
+        <div className="dossier-label">Steward Mode</div>
+        <h2 className="heading mt-2 text-2xl text-ivory">Proposal submission is hidden</h2>
+        <p className="mt-3 text-sm leading-6 text-margin">
+          This wallet created the mission, so it cannot submit work to the same mission. Switch to a proposer wallet to submit evidence-backed work.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={submit} className="folder p-6">
       <button
@@ -148,12 +160,7 @@ export function ProposalForm({ missionId, steward }: { missionId: string; stewar
         <Area label="Plan" value={state.plan} onChange={(plan) => setState({ ...state, plan })} />
       </div>
       {error ? <p className="mt-4 border border-red-400/50 bg-red-500/10 p-3 text-sm text-red-100">{error}</p> : null}
-      {isSteward ? (
-        <p className="mt-4 border border-amber-400/50 bg-amber-500/10 p-3 text-sm text-amber-100">
-          Switch to a proposer wallet. The contract rejects steward-submitted proposals for this mission.
-        </p>
-      ) : null}
-      <button className="seal-tab mt-6 px-5 py-3" disabled={busy || isSteward}>{busy ? "Submitting..." : "Submit Proposal"}</button>
+      <button className="seal-tab mt-6 px-5 py-3" disabled={busy}>{busy ? "Submitting..." : "Submit Proposal"}</button>
     </form>
   );
 }
