@@ -184,8 +184,8 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64` |
-| Deployment tx | `0x5fed2b56d2c6aa81df987f07889e3fe48c95d7fb4beb466f2e148d78dbb1f332` |
+| Contract | `0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94` |
+| Deployment tx | `0xcae850892cc0cece8c0f711a96eb43fbfce1d26c15099e42706f72582245ffd2` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -194,14 +194,14 @@ The upgraded deployment was exercised end-to-end with public IANA evidence:
 
 | Flow | Transaction |
 | --- | --- |
-| Create mission | `0x7d8b9ece51bb3de47fb0e358d9c88aae9706af963c26d739241be5ceddc37261` |
-| Fund mission | `0xc4f224c174df6654d65bb20451b5e2eefc7015f990aab73d0c9f8220660b64ca` |
-| Submit proposal | `0xde924950a70d9a2501ec5f45ff5a6e455af3174c7cd814829117e80ad4a0c938` |
-| First consensus review | `0x847cc31ce5410f6ce9c143c641b163c2be1595328551754f0a38459c619aa6e0` |
-| Open challenge with new evidence | `0xbf65686b6c15913dbfd2d96a9190cfe0478f0d539bc6c8f47a418f726786ffe2` |
-| Consensus review after challenge | `0x9c9a1848fc42f2fc168d7b9f6188c2061b218690893acc0e6a5591bef81a824a` |
-| Release payment | `0x3602a5078c66db357e8cedb39acb853fb5af6466f310975a4cfd6a1ff1661427` |
-| Close mission | `0x9f8d42bf3e3a95c52a4e260d57ae544e46220461c3b60802d689a5bc4adac1f2` |
+| Create mission | `0x59928d50e4bfd7997663733621384c964c607d7b824a2e0e3e2ab22fe27c26a4` |
+| Fund mission | `0x52355445529153e42b4c50a2c0f462a7a4bdd1d132d878fc375bc861a403c363` |
+| Submit proposal | `0xc9e8956853a16642f11a50660c488de4409cff6b240c5f1c1f7e85a38724a1a9` |
+| First consensus review | `0x3897cbb1fb2ec28c8e7893c869a2bcf1e0885e8d2beae292e572874d9b91a376` |
+| Open challenge with new evidence | `0xf81b09aa2ceea147ca189864c4132886ee5ba73bc055c16820c27d1efca737c6` |
+| Consensus review after challenge | `0x06148b924928f56e6f9091e481387381768eed5e284dc431c4f8eac61bcb38ba` |
+| Release payment | `0xecf257f0a007cdb136799b1cfe9e3d964c256af6948cb51c1d3e00488db093b4` |
+| Close mission | `0x6ba32a7769fd9f70304c3c1a01bfc9e5890515d4457bf4ec57e9a84307e804be` |
 
 The first review approved the proposal. The challenge added a second IANA source, validators fetched both sources, the second review approved again, and payout was released after that second verdict.
 
@@ -224,7 +224,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64 npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94 npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -287,7 +287,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x5CC49adcE481A9818101D33E6Ed320F4AeAE6f64
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x0D5C39620215bC2B592B48Fc27d18DaA455d1d94
 ```
 
 Open http://localhost:3000.
