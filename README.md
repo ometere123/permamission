@@ -2,9 +2,9 @@
 
 **Mission-bound treasury review on GenLayer.**
 
-PermaMission lets a community fund a durable mission, accept public work proposals, and release GEN only after GenLayer validators fetch real evidence and agree that the work advances the mission charter.
+PermaMission lets a community fund a durable mission, accept public work proposals, and release GEN only after GenLayer validators first approve mission fit, then later verify durable, attributable evidence of completed work.
 
-This is a **Project** submission, not a standalone contract. The frontend and contract form one product loop: create a mission treasury, submit evidence-backed work, run validator consensus, challenge weak decisions with new evidence, and release funds only after an approved on-chain verdict.
+This is a **Project** submission, not a standalone contract. The frontend and contract form one product loop: create a mission treasury, submit an evidence-backed plan, run validator consensus, allow a mandatory challenge window, submit completed-work evidence, verify delivery by consensus, and release funds only after a verified on-chain delivery verdict.
 
 [Live app](https://permamission.vercel.app/)
 
@@ -42,7 +42,9 @@ PermaMission addresses that class of failure by forcing each payout through a mi
 2. The proposal must include a public evidence URL.
 3. Validators fetch the evidence inside consensus.
 4. The verdict must compare the fetched evidence against the mission, not against popularity or reputation.
-5. If the decision is disputed, the challenge path adds new public evidence and blocks payout until a second consensus review.
+5. Approval starts a mandatory challenge window; it does not unlock payout.
+6. The proposer must later submit durable, attributable completed-work evidence.
+7. Validators fetch that delivery evidence and verify completion before any payout can be released.
 
 It does not try to solve every grant problem, such as Sybil identity attacks. It specifically targets **mission drift, weak evidence, and subjective payout decisions** in recurring public-purpose treasuries.
 
@@ -57,7 +59,9 @@ submit_proposal(...)                -> builder submits plan + public evidence UR
 review_proposal(...)                -> validators fetch evidence and decide mission fit
 open_challenge(...)                 -> authorized party supplies new public evidence
 review_challenge(...)               -> validators re-review with challenge evidence
-release_payment(...)                -> anyone can execute the approved payout path
+submit_delivery(...)                -> proposer submits completed-work evidence after challenge window
+verify_delivery(...)                -> validators fetch delivery evidence and verify completion
+release_payment(...)                -> anyone can execute payout after verified delivery
 close_mission(...)                  -> steward closes future submissions
 get_profile(...)                    -> read an address dashboard from contract state
 ```
@@ -81,7 +85,7 @@ PermaMission needs GenLayer because the deciding party cannot be the steward, pr
 | LLM judgement | The review interprets prose mission constraints against public evidence. |
 | Equivalence principle | `prompt_comparative` compares semantic decision categories, not JSON formatting. |
 | State as source of truth | Missions, contributions, profiles, proposals, verdicts, challenge evidence, and payout state live in the contract. |
-| Value movement | `release_payment` emits the GEN transfer only after an approved decision; any caller can execute it, but the contract fixes the proposer as recipient. |
+| Value movement | `release_payment` emits the GEN transfer only after verified delivery; any caller can execute it, but the contract fixes the proposer as recipient. |
 
 The model is asked what the evidence proves. The contract decides which state transition and payout branch are allowed.
 
@@ -89,7 +93,7 @@ The model is asked what the evidence proves. The contract decides which state tr
 
 ## Consensus Design
 
-Only proposal and challenge review enter non-deterministic consensus.
+Proposal review, challenge review, and delivery verification enter non-deterministic consensus.
 
 `review_proposal(proposal_id)`:
 
@@ -106,7 +110,15 @@ Only proposal and challenge review enter non-deterministic consensus.
 3. Runs the same comparative consensus review with both evidence bodies and the challenge summary.
 4. Updates the proposal decision before any payout can be released.
 
-Stored verdict categories:
+`verify_delivery(proposal_id)`:
+
+1. Requires the proposer to have submitted a delivery URL and summary after the challenge window.
+2. Fetches both the original evidence URL and the delivery evidence URL inside the contract.
+3. Asks validators whether durable, attributable evidence shows completed work matching the approved plan and mission.
+4. Stores the delivery verdict, delivery evidence summary, and delivery rationale.
+5. Only `VERIFY` moves the proposal to `VERIFIED`, which is the only state that can pay.
+
+Stored proposal-review verdict categories:
 
 | Verdict | Meaning |
 | --- | --- |
@@ -114,17 +126,29 @@ Stored verdict categories:
 | `REJECT` | Evidence conflicts with the charter, lacks relevance, or shows the plan should not be funded. |
 | `NEEDS_EVIDENCE` | The answer is not knowable from the supplied plan and fetched evidence. |
 
+Stored delivery-review verdict categories:
+
+| Verdict | Meaning |
+| --- | --- |
+| `VERIFY` | Durable, public, attributable evidence shows completed work matching the approved plan. |
+| `REJECT` | Delivery evidence does not prove completion, attribution, or mission fit. |
+| `NEEDS_EVIDENCE` | Completion or attribution is not knowable from fetched delivery evidence. |
+
 Decision statuses:
 
 ```
-OPEN -> APPROVED | REJECTED | NEEDS_EVIDENCE
-APPROVED -> CHALLENGED                       steward only
+OPEN -> APPROVED_PENDING_DELIVERY | REJECTED | NEEDS_EVIDENCE
+APPROVED_PENDING_DELIVERY -> CHALLENGED      steward only, during mandatory challenge window
 REJECTED | NEEDS_EVIDENCE -> CHALLENGED      proposer or steward
-CHALLENGED -> APPROVED | REJECTED | NEEDS_EVIDENCE
-APPROVED -> PAID
+CHALLENGED -> APPROVED_PENDING_DELIVERY | REJECTED | NEEDS_EVIDENCE
+APPROVED_PENDING_DELIVERY -> DELIVERY_SUBMITTED
+DELIVERY_SUBMITTED -> VERIFIED | REJECTED | NEEDS_EVIDENCE
+VERIFIED -> PAID
 ```
 
-`CHALLENGED` is the key iteration: payout is blocked until validators review the original evidence plus new challenge evidence. A proposer can appeal a rejection or evidence gap. A steward can pause a suspicious approval before funds leave the treasury.
+`CHALLENGED` is the first safety gate: payout is blocked until validators review the original evidence plus new challenge evidence. A proposer can appeal a rejection or evidence gap. A steward can pause a suspicious approval before delivery submission.
+
+`DELIVERY_SUBMITTED` is the second safety gate: a future plan cannot be paid. The contract requires a post-approval delivery URL and summary, then validators must fetch that evidence and verify completed work before `release_payment` is available.
 
 ---
 
@@ -137,7 +161,7 @@ The frontend is a real contract interface, not a demo shell.
 - `/missions/new` creates and funds a mission.
 - `/missions/[id]` shows a mission, lets anyone add GEN, and lets builders submit proposals.
 - `/proposals` browses proposal decisions from the contract.
-- `/proposals/[id]` shows evidence, rationale, challenge evidence, review actions, and payout actions.
+- `/proposals/[id]` shows plan evidence, challenge evidence, challenge deadline, completed-work evidence, delivery verification notes, review actions, and payout actions.
 - `/dashboard` reads the connected wallet's contract profile: stewarded missions, submitted proposals, funded missions, payouts, and open challenge work.
 
 Wallet support:
@@ -164,7 +188,9 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | `review_proposal(proposal_id)` | consensus write | Fetch evidence and decide mission fit. |
 | `open_challenge(proposal_id, challenge_url, challenge_summary)` | write | Reopen a decision with new public evidence. |
 | `review_challenge(proposal_id)` | consensus write | Fetch original plus challenge evidence and re-decide mission fit. |
-| `release_payment(proposal_id)` | write | Permissionlessly releases GEN after approval to the recorded proposer. |
+| `submit_delivery(proposal_id, delivery_url, delivery_summary)` | write | Proposer submits durable completed-work evidence after the challenge window. |
+| `verify_delivery(proposal_id)` | consensus write | Fetch original plus delivery evidence and verify completed, attributable work. |
+| `release_payment(proposal_id)` | write | Permissionlessly releases GEN after verified delivery to the recorded proposer. |
 | `mark_paid(proposal_id)` | write | Compatibility alias for `release_payment`. |
 | `close_mission(mission_id)` | write | Close future submissions for a mission. |
 | `get_summary()` | view | Contract-level counters and balance. |
@@ -184,8 +210,8 @@ Funder receipts are also contract state. Adding GEN does not grant voting rights
 | Network | GenLayer StudioNet |
 | Chain | `studionet` |
 | RPC | `https://studio.genlayer.com/api` |
-| Contract | `0x246B9547e58e2ABc340362EF02581bA4d15D1639` |
-| Deployment tx | `0x11ecaff505119848fdc023a3557c081c3f7f1cb1029063ae770f68c9d5c4b197` |
+| Contract | `0xA1160d731168C72c961102071200b67c8112413f` |
+| Deployment tx | `0xac16aa12782d12ab14af9b638a16f8ddb12b3591523acb33459b2b18232e5cab` |
 | Source | `contracts/PermaMission.py` |
 
 ### Measured StudioNet flow
@@ -224,7 +250,7 @@ npm run lint
 npm run build
 # passed
 
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x246B9547e58e2ABc340362EF02581bA4d15D1639 npm run verify:schema
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0xA1160d731168C72c961102071200b67c8112413f npm run verify:schema
 # Schema verified
 
 node scripts\exercise-studionet.mjs
@@ -287,7 +313,7 @@ Environment:
 ```bash
 NEXT_PUBLIC_GENLAYER_CHAIN=studionet
 NEXT_PUBLIC_GENLAYER_ENDPOINT=https://studio.genlayer.com/api
-NEXT_PUBLIC_PERMAMISSION_CONTRACT=0x246B9547e58e2ABc340362EF02581bA4d15D1639
+NEXT_PUBLIC_PERMAMISSION_CONTRACT=0xA1160d731168C72c961102071200b67c8112413f
 ```
 
 Open http://localhost:3000.

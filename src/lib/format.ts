@@ -32,8 +32,8 @@ export function displayTime(iso?: string) {
 }
 
 export function statusTone(status: string) {
-  if (status === "APPROVED" || status === "PAID" || status === "APPROVE") return "text-emerald-200 border-emerald-400/50 bg-emerald-500/10";
+  if (status === "VERIFIED" || status === "PAID" || status === "APPROVE" || status === "VERIFY") return "text-emerald-200 border-emerald-400/50 bg-emerald-500/10";
   if (status === "REJECTED" || status === "REJECT") return "text-red-200 border-red-400/50 bg-red-500/10";
-  if (status === "NEEDS_EVIDENCE" || status === "UNDETERMINED") return "text-amber-200 border-amber-400/50 bg-amber-500/10";
+  if (status === "APPROVED" || status === "APPROVED_PENDING_DELIVERY" || status === "DELIVERY_SUBMITTED" || status === "NEEDS_EVIDENCE" || status === "UNDETERMINED") return "text-amber-200 border-amber-400/50 bg-amber-500/10";
   return "text-stone-200 border-stone-500 bg-stone-500/10";
 }

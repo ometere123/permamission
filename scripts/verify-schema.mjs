@@ -22,6 +22,8 @@ const required = [
   "review_proposal",
   "open_challenge",
   "review_challenge",
+  "submit_delivery",
+  "verify_delivery",
   "release_payment",
   "mark_paid",
   "close_mission",

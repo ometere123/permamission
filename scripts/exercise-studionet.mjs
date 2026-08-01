@@ -91,9 +91,7 @@ const proposal = await proposerClient.readContract({
 });
 console.log("proposal after review:", JSON.stringify(proposal, null, 2));
 
-let released = false;
-
-if (proposal?.status === "APPROVED") {
+if (proposal?.status === "APPROVED_PENDING_DELIVERY") {
   await write(stewardClient, "open_challenge", "open_challenge", [
     proposalId,
     "https://www.iana.org/domains/reserved",
@@ -108,13 +106,6 @@ if (proposal?.status === "APPROVED") {
     args: [proposalId],
   });
   console.log("proposal after challenge review:", JSON.stringify(challengedProposal, null, 2));
-
-  if (challengedProposal?.status !== "APPROVED") {
-    console.log("release_payment skipped because challenge review did not approve");
-  } else {
-    await write(stewardClient, "release_payment", "release_payment", [proposalId]);
-    released = true;
-  }
 } else if (proposal?.status === "REJECTED" || proposal?.status === "NEEDS_EVIDENCE") {
   await write(proposerClient, "open_challenge", "open_challenge", [
     proposalId,
@@ -132,10 +123,14 @@ const latestProposal = await stewardClient.readContract({
   args: [proposalId],
 });
 
-if (!released && latestProposal?.status === "APPROVED") {
+if (latestProposal?.status === "APPROVED_PENDING_DELIVERY") {
+  console.log(`delivery submission is locked until ${latestProposal.challenge_deadline}`);
+} else if (latestProposal?.status === "DELIVERY_SUBMITTED") {
+  await write(stewardClient, "verify_delivery", "verify_delivery", [proposalId], 0n, TransactionStatus.ACCEPTED);
+} else if (latestProposal?.status === "VERIFIED") {
   await write(stewardClient, "release_payment", "release_payment", [proposalId]);
 } else {
-  console.log(released ? "release_payment completed" : "release_payment skipped because proposal was not APPROVED after final review");
+  console.log(`delivery/release skipped because proposal is ${latestProposal?.status}`);
 }
 
 await write(stewardClient, "close_mission", "close_mission", [missionId]);

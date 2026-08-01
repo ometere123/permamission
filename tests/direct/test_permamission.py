@@ -1,4 +1,5 @@
 GEN = 10**18
+from conftest import warp_to
 
 
 def create_mission(contract, direct_vm, steward, mission_id="mission-alpha", value=10 * GEN):
@@ -35,6 +36,31 @@ def mock_review(direct_vm, verdict="APPROVE", score="HIGH", reason="The proposal
         r".*reviewing a PermaMission proposal.*",
         f'{{"verdict":"{verdict}","score_band":"{score}","evidence_summary":"Evidence is public and relevant.","rationale":"{reason}"}}',
     )
+
+
+def mock_delivery_review(direct_vm, verdict="VERIFY", reason="The completed work matches the approved plan."):
+    direct_vm.mock_web(r".*example\.com/delivery.*", {"status": 200, "body": "completed archive durable public attributable proposer source pack"})
+    direct_vm.mock_llm(
+        r".*verifying completed PermaMission work.*",
+        f'{{"verdict":"{verdict}","evidence_summary":"Delivery evidence is public, durable, and attributable.","rationale":"{reason}"}}',
+    )
+
+
+def approve_proposal(contract, direct_vm, pid):
+    mock_review(direct_vm, "APPROVE", "HIGH")
+    contract.review_proposal(pid)
+
+
+def submit_and_verify_delivery(contract, direct_vm, proposer, pid):
+    warp_to(direct_vm, "2100-01-02T00:00:01Z")
+    direct_vm.sender = proposer
+    contract.submit_delivery(
+        pid,
+        "https://example.com/delivery",
+        "Completed public source pack with durable URLs, proposer attribution, reusable summaries, and materials matching the approved plan.",
+    )
+    mock_delivery_review(direct_vm, "VERIFY")
+    contract.verify_delivery(pid)
 
 
 def test_create_mission_requires_funding(contract, direct_vm, direct_alice):
@@ -143,7 +169,9 @@ def test_review_approve_sets_status(contract, direct_vm, direct_alice, direct_bo
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     mock_review(direct_vm, "APPROVE", "HIGH")
     contract.review_proposal(pid)
-    assert contract.get_proposal(pid)["status"] == "APPROVED"
+    proposal = contract.get_proposal(pid)
+    assert proposal["status"] == "APPROVED_PENDING_DELIVERY"
+    assert proposal["challenge_deadline"] != ""
 
 
 def test_review_reject_sets_status(contract, direct_vm, direct_alice, direct_bob):
@@ -232,7 +260,7 @@ def test_challenge_blocks_release_until_rereview(contract, direct_vm, direct_ali
         "New public source evidence shows the archive has durable snapshots, clear attribution, and direct mission relevance.",
     )
     direct_vm.sender = direct_alice
-    with direct_vm.expect_revert("not approved"):
+    with direct_vm.expect_revert("not verified"):
         contract.release_payment(pid)
 
 
@@ -283,15 +311,78 @@ def test_release_requires_approval(contract, direct_vm, direct_alice, direct_bob
     mid = create_mission(contract, direct_vm, direct_alice)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
     direct_vm.sender = direct_alice
-    with direct_vm.expect_revert("not approved"):
+    with direct_vm.expect_revert("not verified"):
         contract.release_payment(pid)
 
 
-def test_anyone_can_release_approved_payout(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
+def test_approved_plan_cannot_be_paid_before_delivery_verification(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
     mid = create_mission(contract, direct_vm, direct_alice)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid)
-    mock_review(direct_vm, "APPROVE", "HIGH")
-    contract.review_proposal(pid)
+    approve_proposal(contract, direct_vm, pid)
+    direct_vm.sender = direct_charlie
+    with direct_vm.expect_revert("not verified"):
+        contract.release_payment(pid)
+
+
+def test_delivery_cannot_be_submitted_before_challenge_window(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    approve_proposal(contract, direct_vm, pid)
+    direct_vm.sender = direct_bob
+    with direct_vm.expect_revert("Challenge window"):
+        contract.submit_delivery(
+            pid,
+            "https://example.com/delivery",
+            "Completed public source pack with durable URLs, proposer attribution, reusable summaries, and materials matching the approved plan.",
+        )
+
+
+def test_only_proposer_can_submit_delivery(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    approve_proposal(contract, direct_vm, pid)
+    warp_to(direct_vm, "2100-01-02T00:00:01Z")
+    direct_vm.sender = direct_charlie
+    with direct_vm.expect_revert("Only proposer"):
+        contract.submit_delivery(
+            pid,
+            "https://example.com/delivery",
+            "Completed public source pack with durable URLs, proposer attribution, reusable summaries, and materials matching the approved plan.",
+        )
+
+
+def test_verify_delivery_sets_verified(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
+    proposal = contract.get_proposal(pid)
+    assert proposal["status"] == "VERIFIED"
+    assert proposal["delivery_verdict"] == "VERIFY"
+    assert proposal["delivery_evidence_summary"] != ""
+
+
+def test_delivery_review_can_reject_completed_work(contract, direct_vm, direct_alice, direct_bob):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    approve_proposal(contract, direct_vm, pid)
+    warp_to(direct_vm, "2100-01-02T00:00:01Z")
+    direct_vm.sender = direct_bob
+    contract.submit_delivery(
+        pid,
+        "https://example.com/delivery",
+        "Completed public source pack with durable URLs, proposer attribution, reusable summaries, and materials matching the approved plan.",
+    )
+    mock_delivery_review(direct_vm, "REJECT", "The evidence is not attributable.")
+    contract.verify_delivery(pid)
+    assert contract.get_proposal(pid)["status"] == "REJECTED"
+
+
+def test_anyone_can_release_verified_payout(contract, direct_vm, direct_alice, direct_bob, direct_charlie):
+    mid = create_mission(contract, direct_vm, direct_alice)
+    pid = submit_proposal(contract, direct_vm, direct_bob, mid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
     direct_vm.sender = direct_charlie
     contract.release_payment(pid)
     proposal = contract.get_proposal(pid)
@@ -302,8 +393,8 @@ def test_anyone_can_release_approved_payout(contract, direct_vm, direct_alice, d
 def test_release_payment_moves_to_paid(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice, value=10 * GEN)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid, amount=3 * GEN)
-    mock_review(direct_vm, "APPROVE", "HIGH")
-    contract.review_proposal(pid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
     direct_vm.sender = direct_alice
     contract.release_payment(pid)
     proposal = contract.get_proposal(pid)
@@ -315,8 +406,8 @@ def test_release_payment_moves_to_paid(contract, direct_vm, direct_alice, direct
 def test_profile_tracks_stewarded_submitted_and_paid(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice, value=10 * GEN)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid, amount=3 * GEN)
-    mock_review(direct_vm, "APPROVE", "HIGH")
-    contract.review_proposal(pid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
     direct_vm.sender = direct_alice
     contract.release_payment(pid)
 
@@ -332,8 +423,8 @@ def test_profile_tracks_stewarded_submitted_and_paid(contract, direct_vm, direct
 def test_release_fails_when_treasury_short(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice, value=GEN)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid, amount=3 * GEN)
-    mock_review(direct_vm, "APPROVE", "HIGH")
-    contract.review_proposal(pid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
     direct_vm.sender = direct_alice
     with direct_vm.expect_revert("treasury"):
         contract.release_payment(pid)
@@ -342,8 +433,8 @@ def test_release_fails_when_treasury_short(contract, direct_vm, direct_alice, di
 def test_mark_paid_alias_releases(contract, direct_vm, direct_alice, direct_bob):
     mid = create_mission(contract, direct_vm, direct_alice, value=5 * GEN)
     pid = submit_proposal(contract, direct_vm, direct_bob, mid, amount=2 * GEN)
-    mock_review(direct_vm, "APPROVE", "HIGH")
-    contract.review_proposal(pid)
+    approve_proposal(contract, direct_vm, pid)
+    submit_and_verify_delivery(contract, direct_vm, direct_bob, pid)
     direct_vm.sender = direct_alice
     contract.mark_paid(pid)
     assert contract.get_proposal(pid)["status"] == "PAID"

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChallengeReviewForm, ProposalActionButtons } from "@/components/write-actions";
+import { ChallengeReviewForm, DeliveryForm, ProposalActionButtons } from "@/components/write-actions";
 import { TransactionRail } from "@/components/transaction-provider";
 import { getMission, getProposal } from "@/lib/genlayer/contract";
 import { displayTime, formatAttoGen, statusTone } from "@/lib/format";
@@ -35,6 +35,14 @@ export default async function ProposalDetail({ params }: { params: Promise<{ pro
           <div className="dossier-label">Evidence URL</div>
           <a className="mono mt-3 block break-all text-gold underline" href={proposal.evidence_url} target="_blank" rel="noreferrer">{proposal.evidence_url}</a>
         </div>
+        {proposal.challenge_deadline ? (
+          <div className="mt-6 manuscript-border bg-coal-900 p-5">
+            <div className="dossier-label">Challenge Window</div>
+            <p className="mt-3 text-sm leading-7 text-margin">
+              Payment is locked until completed-work evidence is submitted and verified after {displayTime(proposal.challenge_deadline)}.
+            </p>
+          </div>
+        ) : null}
         <div className="mt-6 grid gap-6 md:grid-cols-2">
           <div className="manuscript-border bg-coal-900 p-5">
             <div className="dossier-label">Evidence Summary</div>
@@ -53,6 +61,26 @@ export default async function ProposalDetail({ params }: { params: Promise<{ pro
             <p className="mono mt-3 text-xs text-margin">Submitted {displayTime(proposal.challenged_at)}</p>
           </div>
         ) : null}
+        {proposal.delivery_url ? (
+          <div className="mt-6 manuscript-border bg-coal-900 p-5">
+            <div className="dossier-label">Completed Work Evidence</div>
+            <a className="mono mt-3 block break-all text-gold underline" href={proposal.delivery_url} target="_blank" rel="noreferrer">{proposal.delivery_url}</a>
+            <p className="mt-3 text-sm leading-7 text-margin">{proposal.delivery_summary}</p>
+            <p className="mono mt-3 text-xs text-margin">Submitted {displayTime(proposal.delivered_at)}</p>
+          </div>
+        ) : null}
+        {(proposal.delivery_evidence_summary || proposal.delivery_rationale) ? (
+          <div className="mt-6 grid gap-6 md:grid-cols-2">
+            <div className="manuscript-border bg-coal-900 p-5">
+              <div className="dossier-label">Delivery Evidence Summary</div>
+              <p className="mt-3 text-sm leading-7 text-margin">{proposal.delivery_evidence_summary || "No delivery evidence summary yet."}</p>
+            </div>
+            <div className="manuscript-border bg-coal-900 p-5">
+              <div className="dossier-label">Delivery Rationale</div>
+              <p className="mt-3 text-sm leading-7 text-margin">{proposal.delivery_rationale || "No delivery verification rationale yet."}</p>
+            </div>
+          </div>
+        ) : null}
         {proposal.status === "PAID" ? (
           <div className="mt-6 manuscript-border bg-coal-900 p-5">
             <div className="dossier-label">Released Payment</div>
@@ -62,6 +90,7 @@ export default async function ProposalDetail({ params }: { params: Promise<{ pro
       </section>
       <aside className="space-y-6">
         <ProposalActionButtons proposalId={proposal.id} status={proposal.status} />
+        <DeliveryForm proposalId={proposal.id} status={proposal.status} proposer={proposal.proposer} />
         <ChallengeReviewForm proposalId={proposal.id} status={proposal.status} proposer={proposal.proposer} steward={mission?.steward ?? ""} />
         <TransactionRail />
       </aside>

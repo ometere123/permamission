@@ -21,13 +21,31 @@ export type Proposal = {
   requested_amount: string;
   plan: string;
   evidence_url: string;
-  status: "OPEN" | "UNDER_REVIEW" | "APPROVED" | "REJECTED" | "NEEDS_EVIDENCE" | "CHALLENGED" | "PAID";
+  status:
+    | "OPEN"
+    | "UNDER_REVIEW"
+    | "APPROVED"
+    | "APPROVED_PENDING_DELIVERY"
+    | "DELIVERY_SUBMITTED"
+    | "VERIFIED"
+    | "REJECTED"
+    | "NEEDS_EVIDENCE"
+    | "CHALLENGED"
+    | "PAID";
   created_at: string;
   reviewed_at: string;
   score_band: "UNREVIEWED" | "HIGH" | "MEDIUM" | "LOW" | "UNKNOWN";
   verdict: "UNREVIEWED" | "APPROVE" | "REJECT" | "NEEDS_EVIDENCE";
   rationale: string;
   evidence_summary: string;
+  challenge_deadline: string;
+  delivery_url: string;
+  delivery_summary: string;
+  delivered_at: string;
+  delivery_reviewed_at: string;
+  delivery_verdict: "UNREVIEWED" | "VERIFY" | "REJECT" | "NEEDS_EVIDENCE";
+  delivery_rationale: string;
+  delivery_evidence_summary: string;
   challenge_url: string;
   challenge_summary: string;
   challenged_at: string;

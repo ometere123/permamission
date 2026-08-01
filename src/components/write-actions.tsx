@@ -29,6 +29,11 @@ const DEMO_CHALLENGE = {
   summary: "This official CISA Secure by Design program page gives broader public context for the guidance and helps validators decide whether the proposal truly advances the mission rather than merely linking a related resource.",
 };
 
+const DEMO_DELIVERY = {
+  evidence: "https://www.cisa.gov/resources-tools/resources/secure-by-design",
+  summary: "The submitted work is a public guide pack with durable source links, reusable checklist material, and attribution to the proposer. It maps the approved plan to completed public artifacts that a community maintainer can inspect and reuse.",
+};
+
 function demoSuffix() {
   return Date.now().toString().slice(-6);
 }
@@ -219,7 +224,7 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
   const txs = useTransactions();
   const [message, setMessage] = useState("");
 
-  async function run(functionName: "review_proposal" | "review_challenge" | "release_payment") {
+  async function run(functionName: "review_proposal" | "review_challenge" | "verify_delivery" | "release_payment") {
     try {
       setMessage("Waiting for wallet signature...");
       const client = await wallet.getWriteClient();
@@ -241,10 +246,74 @@ export function ProposalActionButtons({ proposalId, status }: { proposalId: stri
       <div className="mt-4 flex flex-wrap gap-3">
         {(status === "OPEN" || status === "NEEDS_EVIDENCE") ? <button className="seal-tab px-4 py-3" onClick={() => run("review_proposal")}>Review by Consensus</button> : null}
         {status === "CHALLENGED" ? <button className="seal-tab px-4 py-3" onClick={() => run("review_challenge")}>Review Challenge</button> : null}
-        {status === "APPROVED" ? <button className="tab-button" onClick={() => run("release_payment")}>Release GEN</button> : null}
+        {status === "DELIVERY_SUBMITTED" ? <button className="seal-tab px-4 py-3" onClick={() => run("verify_delivery")}>Verify Delivery</button> : null}
+        {status === "VERIFIED" ? <button className="tab-button" onClick={() => run("release_payment")}>Release GEN</button> : null}
       </div>
       {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
     </div>
+  );
+}
+
+export function DeliveryForm({ proposalId, status, proposer }: { proposalId: string; status: string; proposer: string }) {
+  const router = useRouter();
+  const wallet = useWallet();
+  const txs = useTransactions();
+  const [state, setState] = useState({ evidence: "", summary: "" });
+  const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
+  const connected = wallet.address?.toLowerCase();
+  const isProposer = connected === proposer.toLowerCase();
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    setBusy(true);
+    try {
+      const client = await wallet.getWriteClient();
+      const hash = await writeContract(client, "submit_delivery", [proposalId, state.evidence, state.summary], 0n);
+      txs.track({ hash, label: `Submit delivery ${proposalId}`, createdAt: new Date().toISOString(), status: "PENDING", functionName: "submit_delivery" });
+      setMessage("Delivery submitted. Run delivery verification after it finalizes.");
+      const receipt = await waitAccepted(client, hash);
+      txs.update(hash, String(receipt.statusName ?? receipt.status ?? "ACCEPTED") as never);
+      refreshAfterConsensus(router);
+      setMessage(`Delivery reached ${String(receipt.statusName ?? receipt.status)}.`);
+    } catch (error) {
+      setMessage(writeErrorMessage(error, "Delivery submission failed."));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (status !== "APPROVED_PENDING_DELIVERY") return null;
+
+  if (!isProposer) {
+    return (
+      <div className="manuscript-border bg-coal-900 p-5">
+        <div className="dossier-label">Delivery Required</div>
+        <p className="mt-3 text-sm leading-6 text-margin">
+          The plan was approved, but payment is locked until the proposer submits durable, attributable completed-work evidence after the challenge window.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={submit} className="manuscript-border bg-coal-900 p-5">
+      <div className="dossier-label">Submit Completed Work</div>
+      <button
+        type="button"
+        className="tab-button mt-4"
+        onClick={() => setState(DEMO_DELIVERY)}
+      >
+        Use demo data
+      </button>
+      <div className="mt-4 grid gap-4">
+        <Field label="Delivery Evidence URL" value={state.evidence} onChange={(evidence) => setState({ ...state, evidence })} placeholder="https://..." />
+        <Area label="Delivery Summary" value={state.summary} onChange={(summary) => setState({ ...state, summary })} />
+      </div>
+      <button className="tab-button mt-5" disabled={busy}>{busy ? "Submitting..." : "Submit Delivery"}</button>
+      {message ? <p className="mt-4 text-sm text-margin" aria-live="polite">{message}</p> : null}
+    </form>
   );
 }
 
@@ -258,7 +327,7 @@ export function ChallengeReviewForm({ proposalId, status, proposer, steward }: {
   const connected = wallet.address?.toLowerCase();
   const isProposer = connected === proposer.toLowerCase();
   const isSteward = connected === steward.toLowerCase();
-  const canChallenge = status === "APPROVED" ? isSteward : (status === "REJECTED" || status === "NEEDS_EVIDENCE") && (isProposer || isSteward);
+  const canChallenge = status === "APPROVED_PENDING_DELIVERY" ? isSteward : (status === "REJECTED" || status === "NEEDS_EVIDENCE") && (isProposer || isSteward);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
